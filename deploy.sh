@@ -10,7 +10,7 @@ DOMAIN=$2
 
 if [ -z "$EC2_IP" ] || [ -z "$DOMAIN" ]; then
     echo "❌ Uso: ./deploy.sh [IP_DO_EC2] [NOME_DO_DOMINIO]"
-    echo "Exemplo: ./deploy.sh 54.123.45.67 meuinterfone.com"
+    echo "Exemplo: ./deploy.sh 3.19.208.48 interfonedigital.duckdns.org"
     exit 1
 fi
 

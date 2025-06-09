@@ -47,7 +47,7 @@ Custom TCP  TCP         8000         0.0.0.0/0  (temporário para teste)
 ### 1.3 Obter IP Público
 
 - Anote o **Public IPv4 address** da sua instância
-- Exemplo: `54.123.45.67`
+- Exemplo: `3.19.208.48`
 
 ---
 
@@ -59,16 +59,16 @@ No seu provedor de domínio, configure:
 
 ```
 Type    Name    Value           TTL
-A       @       54.123.45.67    300
-A       www     54.123.45.67    300
+A       @       3.19.208.48    300
+A       www     3.19.208.48    300
 ```
 
 ### 2.2 Verificar Propagação
 
 ```bash
 # Teste se o DNS propagou
-nslookup seu-dominio.com
-ping seu-dominio.com
+nslookup interfonedigital.duckdns.org
+ping interfonedigital.duckdns.org
 ```
 
 ---
@@ -82,7 +82,7 @@ ping seu-dominio.com
 chmod 400 ~/.ssh/interfone-key.pem
 
 # Conectar ao servidor
-ssh -i ~/.ssh/interfone-key.pem ubuntu@SEU_IP_PUBLICO
+ssh -i ~/.ssh/interfone-key.pem ubuntu@3.19.208.48
 ```
 
 ### 3.2 Executar Configuração Inicial
@@ -104,7 +104,7 @@ chmod +x aws-setup.sh
 
 ```bash
 # Substituir placeholder pelo seu domínio
-sudo sed -i 's/DOMAIN_PLACEHOLDER/seu-dominio.com/g' /etc/nginx/sites-available/interfone
+sudo sed -i 's/DOMAIN_PLACEHOLDER/interfonedigital.duckdns.org/g' /etc/nginx/sites-available/interfone
 
 # Ativar site
 sudo ln -sf /etc/nginx/sites-available/interfone /etc/nginx/sites-enabled/
@@ -120,7 +120,7 @@ sudo systemctl reload nginx
 
 ```bash
 # Obter certificado SSL
-sudo certbot --nginx -d seu-dominio.com -d www.seu-dominio.com
+sudo certbot --nginx -d interfonedigital.duckdns.org
 
 # Seguir as instruções do certbot
 # Escolha opção 2 (redirect HTTP to HTTPS)
@@ -142,14 +142,14 @@ chmod +x deploy.sh
 npm run build
 
 # Executar deploy
-./deploy.sh SEU_IP_PUBLICO seu-dominio.com
+./deploy.sh 3.19.208.48 interfonedigital.duckdns.org
 ```
 
 ### 4.2 Verificar Deploy
 
 ```bash
 # Conectar ao servidor
-ssh -i ~/.ssh/interfone-key.pem ubuntu@SEU_IP_PUBLICO
+ssh -i ~/.ssh/interfone-key.pem ubuntu@3.19.208.48
 
 # Verificar status do serviço
 sudo systemctl status interfone
@@ -182,7 +182,7 @@ sudo systemctl restart interfone
 
 ### 6.1 Testes Básicos
 
-1. **Acesse**: `https://seu-dominio.com`
+1. **Acesse**: `https://interfonedigital.duckdns.org`
 2. **Verifique**:
    - ✅ Site carrega com HTTPS
    - ✅ Não há erros de certificado
@@ -193,14 +193,14 @@ sudo systemctl restart interfone
 
 ```bash
 # Teste HTTPS
-curl -I https://seu-dominio.com
+curl -I https://interfonedigital.duckdns.org
 
 # Teste API
-curl https://seu-dominio.com/api/turn-config
+curl https://interfonedigital.duckdns.org/api/turn-config
 
 # Teste WebSocket (do navegador)
 # DevTools > Console:
-# io('https://seu-dominio.com')
+# io('https://interfonedigital.duckdns.org')
 ```
 
 ---
@@ -220,7 +220,7 @@ sudo systemctl restart interfone
 sudo systemctl status interfone nginx
 
 # Atualizar aplicação
-./deploy.sh SEU_IP_PUBLICO seu-dominio.com
+./deploy.sh 3.19.208.48 interfonedigital.duckdns.org
 
 # Backup
 sudo tar -czf /backup/interfone-$(date +%Y%m%d).tar.gz /opt/interfone
@@ -261,7 +261,7 @@ sudo systemctl status nginx
 sudo nginx -t
 
 # Verificar DNS
-nslookup seu-dominio.com
+nslookup interfonedigital.duckdns.org
 ```
 
 ### Problema: WebSocket não conecta
@@ -294,4 +294,4 @@ Se encontrar problemas:
 3. **Teste localmente** antes de fazer deploy
 4. **Mantenha backups** regulares
 
-**🎉 Sua aplicação de videochamada estará disponível em `https://seu-dominio.com`!** 
+**🎉 Sua aplicação de videochamada estará disponível em `https://interfonedigital.duckdns.org`!** 

@@ -91,7 +91,7 @@ npm run dev     # Terminal 2 - React App (porta 5173)
 ./aws-setup.sh
 
 # 2. Fazer deploy (execute localmente)
-./deploy.sh SEU_IP_PUBLICO seu-dominio.com
+./deploy.sh 3.19.208.48 interfonedigital.duckdns.org
 ```
 
 ### Deploy Manual
