@@ -903,45 +903,17 @@ const VideoCall: React.FC = () => {
       { urls: 'stun:stun1.google.com:19302' },
     ];
 
-    // try {
-    //   // Chamada à API de servidor TURN
-    //   const turnHeaders = new Headers();
-    //   turnHeaders.append("Authorization", "Basic " + btoa("laurocondomob:ffd7e826-478a-11f0-b0c5-0242ac150003"));
-    //   turnHeaders.append("Content-Type", "application/json");
+    try {
+      const response = await fetch('/api/turn');
+      if (response.ok) {
+        const turnServers = await response.json();
+        console.log('🔍 TURN IceServers:', turnServers);
+        iceServers = [...iceServers, ...turnServers];
+      }
+    } catch (error) {
+      console.error('Erro ao buscar iceServers do backend:', error);
+    }
 
-    //   const turnResponse = await fetch('/api/turn', {
-    //     method: "PUT",
-    //     headers: turnHeaders,
-    //     body: JSON.stringify({"format": "urls"})
-    //   });
-    //   if (turnResponse.ok) {
-    //     const data = await turnResponse.json();
-    //     // Supondo que data.iceServers seja um array de RTCIceServer
-    //     if (data.v.iceServers) {
-    //       iceServers.push(data.v.iceServers);
-    //     }
-    //   }
-    // } catch (error) {
-    //   console.error('Erro ao buscar iceServers TURN externos:', error);
-    // }
-
-    // try {
-    //   const response = await fetch('/api/turn');
-    //   console.log('iceServers:', iceServers);
-    //   if (response.ok) {
-    //     const data = await response.json();
-    //     console.log('🔍 Data iceServers:', data);
-    //     iceServers = [...iceServers, ...data];
-    //     console.log('iceServers:', iceServers);
-    //   }
-    // } catch (error) {
-    //   console.error('Erro ao buscar iceServers do backend:', error);
-    // }
-    
-
-    // if(turnIceServers)
-      // iceServers = [...iceServers, ...turnIceServers];
-    
     const pc = new RTCPeerConnection({ iceServers });
     
     console.log('✅ Peer connection created successfully');
