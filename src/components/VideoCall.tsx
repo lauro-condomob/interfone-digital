@@ -247,7 +247,7 @@ const ResponsiveButton = styled(BaseButton)`
   }
   
   @media (max-width: 768px) {
-    padding: 18px;
+    padding: 10px;
     font-size: 20px;
     min-width: 60px;
     width: 60px;
@@ -294,7 +294,7 @@ const Button = styled(BaseButton)`
     margin: 10px 0;
     width: 100%;
     max-width: 350px;
-    min-height: 55px;
+    min-height: 30px;
   }
 `;
 
@@ -314,7 +314,7 @@ const EndCallButton = styled(BaseButton)`
     margin: 10px 0;
     width: 100%;
     max-width: 350px;
-    min-height: 55px;
+    min-height: 30px;
   }
 `;
 
@@ -701,7 +701,7 @@ const PartnerItem = styled.button`
   }
   
   @media (max-width: 768px) {
-    padding: 18px;
+    padding: 10px;
     font-size: 18px;
   }
 `;
@@ -770,6 +770,31 @@ const socket = io(`https://${window.location.hostname}:8000`, {
 
 type LogEntry = { type: 'log' | 'warn' | 'error', message: string };
 const globalLogs: LogEntry[] = [];
+
+// Variável global para armazenar os servidores TURN
+let globalTurnServers: RTCIceServer[] = [];
+
+// Função para carregar os servidores TURN
+const loadTurnServers = async () => {
+  try {
+    const response = await fetch(
+      `https://${window.location.hostname}:8000/api/turn`,
+      {
+        headers: {"Accept": "application/json"},
+      }
+    );
+    if (response.ok) {
+      const turnServers = await response.json();
+      console.log('🔍 TURN IceServers carregados:', turnServers);
+      globalTurnServers = turnServers;
+    }
+  } catch (error) {
+    console.error('Erro ao buscar iceServers do backend:', error);
+  }
+};
+
+// Carregar servidores TURN assim que a página for carregada
+loadTurnServers();
 
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;
@@ -903,15 +928,10 @@ const VideoCall: React.FC = () => {
       { urls: 'stun:stun1.google.com:19302' },
     ];
 
-    try {
-      const response = await fetch('/api/turn');
-      if (response.ok) {
-        const turnServers = await response.json();
-        console.log('🔍 TURN IceServers:', turnServers);
-        iceServers = [...iceServers, ...turnServers];
-      }
-    } catch (error) {
-      console.error('Erro ao buscar iceServers do backend:', error);
+    // Adicionar servidores TURN da variável global
+    if (globalTurnServers.length > 0) {
+      console.log('🔍 Usando TURN IceServers da variável global:', globalTurnServers);
+      iceServers = [...iceServers, ...globalTurnServers];
     }
 
     const pc = new RTCPeerConnection({ iceServers });
