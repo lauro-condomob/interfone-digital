@@ -16,19 +16,16 @@ const app = express();
 app.use(cors());
 
 
-// Substitua pelos seus dados da Twilio
-const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID || undefined;
-const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || undefined;
-const twilioApiKeySid = process.env.TWILIO_API_KEY_SID || undefined;
-const twilioApiKeySecret = process.env.TWILIO_API_KEY_SECRET || undefined;
 
 app.get('/api/turn', async (req, res) => {
+  // Substitua pelos seus dados da Twilio
+  const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID || undefined;
+  const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || undefined;
+  
   try {
     const client = twilio(twilioAccountSid, twilioAuthToken);
-    // Gera um token de acesso para TURN
-    const token = new twilio.jwt.AccessToken(twilioAccountSid, twilioApiKeySid, twilioApiKeySecret);
-    const iceServers = token.iceServers;
-    res.json({ iceServers });
+    const token = await client.tokens.create();
+    res.json([...token.iceServers]);
   } catch (error) {
     console.error('Erro ao gerar credenciais TURN:', error);
     res.status(500).json({ error: 'Erro ao gerar credenciais TURN' });
