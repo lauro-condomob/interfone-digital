@@ -420,7 +420,6 @@ const BaseMessage = styled.div`
   margin: 15px 0;
   text-align: center;
   max-width: 500px;
-  width: 100%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   
   @media (max-width: 768px) {
@@ -624,6 +623,123 @@ const IdInputGroup = styled.div`
   }
 `;
 
+// Popup Components
+const PopupOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  box-sizing: border-box;
+`;
+
+const PopupContainer = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 400px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  
+  @media (max-width: 768px) {
+    padding: 20px;
+    max-width: 90%;
+    max-height: 70vh;
+  }
+`;
+
+const PopupTitle = styled.h2`
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 24px;
+  font-weight: 600;
+  text-align: center;
+  
+  @media (max-width: 768px) {
+    font-size: 20px;
+    margin-bottom: 15px;
+  }
+`;
+
+const PartnersList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+`;
+
+const PartnerItem = styled.button`
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  color: #333;
+  
+  &:hover {
+    border-color: #007bff;
+    background-color: #f8f9ff;
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 18px;
+    font-size: 18px;
+  }
+`;
+
+const PartnerIcon = styled.span`
+  margin-right: 12px;
+  font-size: 20px;
+`;
+
+const EmptyMessage = styled.div`
+  text-align: center;
+  color: #666;
+  font-size: 16px;
+  padding: 30px 20px;
+  font-style: italic;
+`;
+
+const PopupCloseButton = styled.button`
+  width: 100%;
+  padding: 12px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  
+  &:hover {
+    background-color: #5a6268;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 15px;
+    font-size: 18px;
+  }
+`;
+
 // ============================================================================
 // INTERFACES & SOCKET SETUP
 // ============================================================================
@@ -652,6 +768,35 @@ const socket = io(`https://${window.location.hostname}:8000`, {
 // MAIN COMPONENT
 // ============================================================================
 
+type LogEntry = { type: 'log' | 'warn' | 'error', message: string };
+const globalLogs: LogEntry[] = [];
+
+const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
+console.log = (...args: any[]) => {
+  globalLogs.push({
+    type: 'log',
+    message: args.map(a => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' ')
+  });
+  originalConsoleLog(...args);
+};
+console.warn = (...args: any[]) => {
+  globalLogs.push({
+    type: 'warn',
+    message: args.map(a => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' ')
+  });
+  originalConsoleWarn(...args);
+};
+console.error = (...args: any[]) => {
+  globalLogs.push({
+    type: 'error',
+    message: args.map(a => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' ')
+  });
+  originalConsoleError(...args);
+};
+
 const VideoCall: React.FC = () => {
   // States
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -672,6 +817,11 @@ const VideoCall: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isRinging, setIsRinging] = useState(false);
   const [callEndReason, setCallEndReason] = useState<'ended' | 'rejected' | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>(() => [...globalLogs]);
+  const [showLogsPopup, setShowLogsPopup] = useState(false);
+  const [allUsers, setAllUsers] = useState<string[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<string[]>([]);
+  const [showPartnersPopup, setShowPartnersPopup] = useState(false);
 
   // Refs
   const userVideo = useRef<HTMLVideoElement>(null);
@@ -685,6 +835,8 @@ const VideoCall: React.FC = () => {
   const microphone = useRef<MediaStreamAudioSourceNode | null>(null);
   const ringtoneInterval = useRef<number | null>(null);
   const ringtoneAudio = useRef<HTMLAudioElement | null>(null);
+  const logsEndRef = useRef<HTMLDivElement | null>(null);
+  const logsContainerRef = useRef<HTMLDivElement | null>(null);
 
   const initializeCamera = async () => {
     console.log('🎥 Iniciando câmera após definição do ID...');
@@ -741,32 +893,72 @@ const VideoCall: React.FC = () => {
     }
   };
 
-  const createPeerConnection = () => {
+  const createPeerConnection = async () => {
     console.log('🔗 Creating peer connection');
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        // Servidores STUN gratuitos (funcionam na maioria dos casos)
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.google.com:19302' },
-        
-        // TURN servers (necessários para produção - substitua pelos seus)
-        // {
-        //   urls: 'turn:your-turn-server.com:3478',
-        //   username: 'your-username',
-        //   credential: 'your-password'
-        // },
-        // {
-        //   urls: 'turns:your-turn-server.com:5349',
-        //   username: 'your-username', 
-        //   credential: 'your-password'
-        // }
-      ]
-    });
+
+    let iceServers: RTCIceServer[] = [
+      // Servidores STUN gratuitos (funcionam na maioria dos casos)
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.google.com:19302' },
+    ];
+
+    // try {
+    //   // Chamada à API de servidor TURN
+    //   const turnHeaders = new Headers();
+    //   turnHeaders.append("Authorization", "Basic " + btoa("laurocondomob:ffd7e826-478a-11f0-b0c5-0242ac150003"));
+    //   turnHeaders.append("Content-Type", "application/json");
+
+    //   const turnResponse = await fetch('/api/turn', {
+    //     method: "PUT",
+    //     headers: turnHeaders,
+    //     body: JSON.stringify({"format": "urls"})
+    //   });
+    //   if (turnResponse.ok) {
+    //     const data = await turnResponse.json();
+    //     // Supondo que data.iceServers seja um array de RTCIceServer
+    //     if (data.v.iceServers) {
+    //       iceServers.push(data.v.iceServers);
+    //     }
+    //   }
+    // } catch (error) {
+    //   console.error('Erro ao buscar iceServers TURN externos:', error);
+    // }
+
+    // try {
+    //   const response = await fetch('/api/turn');
+    //   console.log('iceServers:', iceServers);
+    //   if (response.ok) {
+    //     const data = await response.json();
+    //     console.log('🔍 Data iceServers:', data);
+    //     iceServers = [...iceServers, ...data];
+    //     console.log('iceServers:', iceServers);
+    //   }
+    // } catch (error) {
+    //   console.error('Erro ao buscar iceServers do backend:', error);
+    // }
+    
+
+    // if(turnIceServers)
+      // iceServers = [...iceServers, ...turnIceServers];
+    
+    const pc = new RTCPeerConnection({ iceServers });
+    
     console.log('✅ Peer connection created successfully');
+
+    pc.onicecandidateerror = (event) => {
+      console.error('❌ ICE Candidate Error:', 
+        event.url, 
+        event.errorCode+' - '+event.errorText,
+        event.address+':'+event.port
+      );
+    };
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         console.log('Sending ICE candidate:', event.candidate);
+        if (event.candidate.candidate.includes('relay')) {
+          console.log('✅ TURN funcionando!');
+        }
         socket.emit("iceCandidate", {
           candidate: event.candidate,
           to: caller || partnerId
@@ -965,7 +1157,7 @@ const VideoCall: React.FC = () => {
           
           if (data.offer) {
             console.log('🔗 Criando peer connection para resposta...');
-            const pc = createPeerConnection();
+            const pc = await createPeerConnection();
             peerConnection.current = pc;
             console.log('✅ Peer connection criado para recebimento');
 
@@ -1024,6 +1216,10 @@ const VideoCall: React.FC = () => {
             return;
           }
 
+          if (data.candidate.candidate && data.candidate.candidate.includes('relay')) {
+              console.log('✅ TURN funcionando!');
+          }
+      
           await peerConnection.current.addIceCandidate(
             new RTCIceCandidate(data.candidate)
           );
@@ -1107,6 +1303,11 @@ const VideoCall: React.FC = () => {
         setIsCalling(false);
       });
 
+      socket.on("usersList", (users: string[]) => {
+        console.log("👥 Lista de usuários disponíveis:", users);
+        setAllUsers(users);
+      });
+
     } catch (error) {
       console.error('❌ ERRO CRÍTICO no useEffect principal:', error);
       setCameraError(`Erro crítico na aplicação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
@@ -1129,6 +1330,7 @@ const VideoCall: React.FC = () => {
         socket.off("userIdConfirmed");
         socket.off("userIdError");
         socket.off("callError");
+        socket.off("usersList");
         
         if (peerConnection.current) {
           peerConnection.current.close();
@@ -1251,12 +1453,12 @@ const VideoCall: React.FC = () => {
     console.log('📞 INICIANDO CHAMADA');
     
     if (!partnerId) {
-      alert("Por favor, insira o ID do parceiro");
+      console.error("❌ ID do parceiro não definido");
       return;
     }
 
     if (partnerId === userId) {
-      alert("❌ Você não pode fazer uma chamada para si mesmo!");
+      console.error("❌ Tentativa de chamar a si mesmo");
       return;
     }
 
@@ -1273,7 +1475,7 @@ const VideoCall: React.FC = () => {
       
       setIsCalling(true);
       console.log('🔗 Criando peer connection...');
-      const pc = createPeerConnection();
+      const pc = await createPeerConnection();
       peerConnection.current = pc;
 
       console.log('🎥 Adding local stream to peer connection (caller)');
@@ -1456,10 +1658,25 @@ const VideoCall: React.FC = () => {
     }
   };
 
-  const handlePartnerIdKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+
+
+  const openPartnersPopup = () => {
+    console.log('🔍 Abrindo popup de parceiros disponíveis');
+    setShowPartnersPopup(true);
+  };
+
+  const selectPartner = (selectedPartnerId: string) => {
+    console.log('👤 Parceiro selecionado:', selectedPartnerId);
+    setPartnerId(selectedPartnerId);
+    setShowPartnersPopup(false);
+    // Iniciar chamada automaticamente após selecionar o parceiro
+    setTimeout(() => {
       callUser();
-    }
+    }, 100);
+  };
+
+  const closePartnersPopup = () => {
+    setShowPartnersPopup(false);
   };
 
   const setupAudioAnalysis = (stream: MediaStream) => {
@@ -1533,49 +1750,135 @@ const VideoCall: React.FC = () => {
   // Error boundary para capturar erros de renderização
   const [renderError, setRenderError] = useState<string | null>(null);
 
+  // useEffect para filtrar a lista de usuários disponíveis
+  useEffect(() => {
+    const filteredUsers = allUsers.filter(user => user !== userId);
+    console.log("🔍 Filtrando usuários:", {
+      userId,
+      allUsers,
+      filteredUsers
+    });
+    setAvailableUsers(filteredUsers);
+  }, [allUsers, userId]);
+
+  useEffect(() => {
+    // Sincroniza o state logs com o array global periodicamente
+    const interval = setInterval(() => {
+      setLogs([...globalLogs]);
+    }, 200);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Efeito para rolar para o final ao abrir o popup
+  useEffect(() => {
+    if (showLogsPopup && logsEndRef.current) {
+      setTimeout(() => {
+        logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 0);
+    }
+  }, [showLogsPopup]);
+
+  // Efeito para rolar para o final ao adicionar novo log, se o usuário já estiver no final
+  useEffect(() => {
+    if (!showLogsPopup || !logsContainerRef.current || !logsEndRef.current) return;
+
+    const container = logsContainerRef.current;
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+
+    // Considere "próximo do final" se menos de 50px do final
+    if (distanceToBottom < 50) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs, showLogsPopup]);
+
+  // Antes do return principal do componente, defina o botão e o popup de logs para serem renderizados sempre
+  const logsButtonAndPopup = <>
+    <Button onClick={() => setShowLogsPopup(true)} style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 10000 }}>
+      Logs
+    </Button>
+    {showLogsPopup && (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center'
+      }}>
+        <div style={{
+          background: '#fff', borderRadius: 8, padding: 24, width: '90vw', maxWidth: 600, maxHeight: '80vh', overflow: 'auto'
+        }}>
+          <h2>Logs capturados</h2>
+          <div
+            ref={logsContainerRef}
+            style={{ maxHeight: 400, overflowY: 'auto', background: '#222', color: '#fff', padding: 12, borderRadius: 4 }}
+          >
+            {logs.length === 0
+              ? <div>Nenhum log capturado.</div>
+              : logs.map((log, idx) => (
+                  <div key={idx} style={{
+                    marginBottom: 8,
+                    borderBottom: '1px solid #444',
+                    paddingBottom: 4,
+                    color: log.type === 'error' ? '#ff5555' : log.type === 'warn' ? '#ffcc00' : '#fff',
+                    fontWeight: log.type === 'error' ? 'bold' : log.type === 'warn' ? 'bold' : 'normal'
+                  }}>
+                    <span style={{ marginRight: 8 }}>
+                      {log.type === 'error' ? '❌' : log.type === 'warn' ? '⚠️' : 'ℹ️'}
+                    </span>
+                    {log.message}
+                  </div>
+                ))
+            }
+            <div ref={logsEndRef} />
+          </div>
+          <Button onClick={() => setShowLogsPopup(false)} style={{ marginTop: 16 }}>
+            Fechar
+          </Button>
+        </div>
+      </div>
+    )}
+  </>;
+
   try {
     // Se o ID ainda não foi configurado, mostrar tela de configuração
     if (!isIdSet) {
       return (
-        <IdSetupContainer>
-          <IdSetupCard>
-            <IdSetupTitle>📱 Interfone Digital</IdSetupTitle>
-            <IdSetupDescription>
-              Escolha um ID único para suas videochamadas.<br/>
-              Este será o ID que outros usuários usarão para te chamar.
-            </IdSetupDescription>
-            
-            <IdInputGroup>
-              <IdSetupInput
-                placeholder="Digite seu ID (ex: joao123, maria_silva)"
-                value={tempUserId}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempUserId(e.target.value)}
-                onKeyPress={handleIdInputKeyPress}
-                disabled={isSettingId}
-                ref={idInputRef}
-              />
-              <IdSetupButton 
-                onClick={setCustomUserId} 
-                disabled={!tempUserId.trim() || isSettingId}
-              >
-                <span className="button-icon">✓</span>
-                <span className="button-text">
-                  {isSettingId ? "Configurando..." : "Definir ID"}
-                </span>
-              </IdSetupButton>
-            </IdInputGroup>
-            
-            {idError && (
-              <ErrorMessage>
-                ⚠️ {idError}
-              </ErrorMessage>
-            )}
-            
-            <StatusMessage>
-              💡 Regras: mínimo 3 caracteres, apenas letras, números, _ e -
-            </StatusMessage>
-          </IdSetupCard>
-        </IdSetupContainer>
+        <>
+          <IdSetupContainer>
+            <IdSetupCard>
+              <IdSetupTitle>📱 Interfone Digital</IdSetupTitle>
+              <IdSetupDescription>
+                Escolha um ID único para suas videochamadas.<br/>
+                Este será o ID que outros usuários usarão para te chamar.
+              </IdSetupDescription>
+              <IdInputGroup>
+                <IdSetupInput
+                  placeholder="Digite seu ID (ex: joao123, maria_silva)"
+                  value={tempUserId}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempUserId(e.target.value)}
+                  onKeyPress={handleIdInputKeyPress}
+                  disabled={isSettingId}
+                  ref={idInputRef}
+                />
+                <IdSetupButton 
+                  onClick={setCustomUserId} 
+                  disabled={!tempUserId.trim() || isSettingId}
+                >
+                  <span className="button-icon">✓</span>
+                  <span className="button-text">
+                    {isSettingId ? "Configurando..." : "Definir ID"}
+                  </span>
+                </IdSetupButton>
+              </IdInputGroup>
+              {idError && (
+                <ErrorMessage>
+                  ⚠️ {idError}
+                </ErrorMessage>
+              )}
+              <StatusMessage>
+                💡 Regras: mínimo 3 caracteres, apenas letras, números, _ e -
+              </StatusMessage>
+            </IdSetupCard>
+          </IdSetupContainer>
+          {logsButtonAndPopup}
+        </>
       );
     }
 
@@ -1616,41 +1919,22 @@ const VideoCall: React.FC = () => {
         )}
 
         {!callAccepted && !isCalling && !receivingCall && !partnerEndedCall && (
-          <>
-            <InputContainer>
-              <CallInput
-                placeholder="Digite o ID do parceiro"
-                value={partnerId}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPartnerId(e.target.value)}
-                style={{
-                  borderColor: partnerId === userId && partnerId ? '#ff4444' : undefined,
-                  backgroundColor: partnerId === userId && partnerId ? '#ff8888' : undefined
-                }}
-                onKeyPress={handlePartnerIdKeyPress}
-              />
-              <CallButton 
-                onClick={callUser} 
-                disabled={!partnerId || partnerId === userId}
-                title={
-                  partnerId === userId 
-                    ? "Não é possível chamar a si mesmo" 
-                    : cameraError 
-                      ? "Chamada sem vídeo - apenas áudio/controle" 
-                      : "Iniciar videochamada"
-                }
-              >
-                <span className="button-icon">📞</span>
-                <span className="button-text">
-                  {cameraError ? "Conectar (sem vídeo)" : "Iniciar Chamada"}
-                </span>
-              </CallButton>
-            </InputContainer>
-            {partnerId === userId && partnerId && (
-              <ErrorMessage style={{ margin: '5px 0', fontSize: '14px' }}>
-                ⚠️ Você não pode chamar a si mesmo
-              </ErrorMessage>
-            )}
-          </>
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}>
+            <CallButton 
+              onClick={openPartnersPopup} 
+              disabled={false}
+              title={
+                cameraError 
+                  ? "Chamada sem vídeo - apenas áudio/controle" 
+                  : "Selecionar parceiro para videochamada"
+              }
+            >
+              <span className="button-icon">📞</span>
+              <span className="button-text">
+                {cameraError ? "Conectar (sem vídeo)" : "Iniciar Chamada"}
+              </span>
+            </CallButton>
+          </div>
         )}
 
         {/* Layout durante chamada ativa - vídeo overlay */}
@@ -1718,10 +2002,10 @@ const VideoCall: React.FC = () => {
                 false // Nunca mostrar vídeo remoto no layout normal
               ].filter(Boolean).length;
               
-              const Container = videoCount <= 1 ? VideoContainerSingle : VideoContainer;
+              const ContainerComponent = videoCount <= 1 ? VideoContainerSingle : VideoContainer;
               
               return (
-                <Container>
+                <ContainerComponent>
                   {stream && (
                     <div style={{ position: 'relative' }}>
                       <VideoInitialState playsInline muted ref={userVideo} autoPlay />
@@ -1766,7 +2050,7 @@ const VideoCall: React.FC = () => {
                       (HTTPS necessário no mobile)
                     </div>
                   )}
-                </Container>
+                </ContainerComponent>
               );
             })()}
           </>
@@ -1794,6 +2078,40 @@ const VideoCall: React.FC = () => {
             </div>
           )}
         </div>
+
+        {logsButtonAndPopup}
+
+        {/* Popup de seleção de parceiros */}
+        {showPartnersPopup && (
+          <PopupOverlay onClick={closePartnersPopup}>
+            <PopupContainer onClick={(e) => e.stopPropagation()}>
+              <PopupTitle>👥 Parceiros Disponíveis</PopupTitle>
+              
+              {availableUsers.length > 0 ? (
+                <PartnersList>
+                  {availableUsers.map((user) => (
+                    <PartnerItem
+                      key={user}
+                      onClick={() => selectPartner(user)}
+                    >
+                      <PartnerIcon>👤</PartnerIcon>
+                      {user}
+                    </PartnerItem>
+                  ))}
+                </PartnersList>
+              ) : (
+                <EmptyMessage>
+                  Nenhum parceiro disponível no momento.<br/>
+                  Aguarde outros usuários se conectarem.
+                </EmptyMessage>
+              )}
+              
+              <PopupCloseButton onClick={closePartnersPopup}>
+                Cancelar
+              </PopupCloseButton>
+            </PopupContainer>
+          </PopupOverlay>
+        )}
       </Container>
     );
   } catch (error) {

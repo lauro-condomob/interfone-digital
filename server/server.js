@@ -7,12 +7,34 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import fs from 'fs';
 import path from 'path';
+import twilio from 'twilio';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
 app.use(cors());
+
+
+// Substitua pelos seus dados da Twilio
+const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID || undefined;
+const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || undefined;
+const twilioApiKeySid = process.env.TWILIO_API_KEY_SID || undefined;
+const twilioApiKeySecret = process.env.TWILIO_API_KEY_SECRET || undefined;
+
+app.get('/api/turn', async (req, res) => {
+  try {
+    const client = twilio(twilioAccountSid, twilioAuthToken);
+    // Gera um token de acesso para TURN
+    const token = new twilio.jwt.AccessToken(twilioAccountSid, twilioApiKeySid, twilioApiKeySecret);
+    const iceServers = token.iceServers;
+    res.json({ iceServers });
+  } catch (error) {
+    console.error('Erro ao gerar credenciais TURN:', error);
+    res.status(500).json({ error: 'Erro ao gerar credenciais TURN' });
+  }
+});
+
 
 // Usar HTTPS para evitar Mixed Content com o cliente HTTPS
 let server;
@@ -49,8 +71,13 @@ const io = new Server(server, {
 const users = new Map(); // customId -> socketId
 const socketToUser = new Map(); // socketId -> customId
 
+function broadcastUsersList() {
+  io.emit("usersList", Array.from(users.keys()));
+}
+
 io.on("connection", (socket) => {
   console.log(`Socket Connected: ${socket.id}`);
+  socket.emit("usersList", Array.from(users.keys()));
 
   socket.on("setUserId", (data) => {
     const { customId } = data;
@@ -73,6 +100,7 @@ io.on("connection", (socket) => {
     
     console.log(`✅ User ${socket.id} registered with custom ID: ${customId}`);
     socket.emit("userIdConfirmed", { customId });
+    broadcastUsersList();
   });
 
   socket.on("callUser", (data) => {
@@ -162,6 +190,7 @@ io.on("connection", (socket) => {
     } else {
       console.log(`Socket Disconnected: ${socket.id}`);
     }
+    broadcastUsersList();
   });
 });
 
