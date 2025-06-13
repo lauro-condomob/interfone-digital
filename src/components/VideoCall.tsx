@@ -822,6 +822,7 @@ const VideoCall: React.FC = () => {
   const [allUsers, setAllUsers] = useState<string[]>([]);
   const [availableUsers, setAvailableUsers] = useState<string[]>([]);
   const [showPartnersPopup, setShowPartnersPopup] = useState(false);
+  const [shouldCall, setShouldCall] = useState(false);
 
   // Refs
   const userVideo = useRef<HTMLVideoElement>(null);
@@ -1449,6 +1450,14 @@ const VideoCall: React.FC = () => {
     }
   }, [isIdSet]);
 
+  useEffect(() => {
+    if (shouldCall) {
+      // O partnerId já foi atualizado pelo selectPartner
+      callUser();
+      setShouldCall(false); // Reseta o gatilho
+    }
+  }, [shouldCall]);
+
   const callUser = async () => {
     console.log('📞 INICIANDO CHAMADA');
     
@@ -1669,10 +1678,7 @@ const VideoCall: React.FC = () => {
     console.log('👤 Parceiro selecionado:', selectedPartnerId);
     setPartnerId(selectedPartnerId);
     setShowPartnersPopup(false);
-    // Iniciar chamada automaticamente após selecionar o parceiro
-    setTimeout(() => {
-      callUser();
-    }, 100);
+    setShouldCall(true);
   };
 
   const closePartnersPopup = () => {
