@@ -1109,6 +1109,7 @@ const VideoCall: React.FC = () => {
   const audioContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
   const microphone = useRef<MediaStreamAudioSourceNode | null>(null);
+  const audioMonitoringId = useRef<number | null>(null);
   const ringtoneInterval = useRef<number | null>(null);
   const ringtoneAudio = useRef<HTMLAudioElement | null>(null);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
@@ -2026,6 +2027,13 @@ const VideoCall: React.FC = () => {
 
   const cleanupAudioAnalysis = () => {
     try {
+      // Parar monitoramento anterior
+      if (audioMonitoringId.current) {
+        cancelAnimationFrame(audioMonitoringId.current);
+        audioMonitoringId.current = null;
+        console.log('🧹 Monitoramento de áudio anterior parado');
+      }
+      
       // Desconectar e limpar microphone source anterior
       if (microphone.current) {
         microphone.current.disconnect();
@@ -2084,12 +2092,26 @@ const VideoCall: React.FC = () => {
   };
 
   const startAudioMonitoring = () => {
-    if (!analyser.current) return;
+    if (!analyser.current) {
+      console.warn('⚠️ Analyser não disponível para monitoramento');
+      return;
+    }
+    
+    // Parar monitoramento anterior se existir
+    if (audioMonitoringId.current) {
+      cancelAnimationFrame(audioMonitoringId.current);
+      console.log('🔄 Parando monitoramento anterior');
+    }
     
     const dataArray = new Uint8Array(analyser.current.frequencyBinCount);
+    console.log('📊 DataArray criado com tamanho:', dataArray.length);
     
     const checkAudioLevel = () => {
-      if (!analyser.current) return;
+      if (!analyser.current) {
+        console.log('⚠️ Analyser não disponível, parando monitoramento');
+        audioMonitoringId.current = null;
+        return;
+      }
       
       analyser.current.getByteFrequencyData(dataArray);
       
@@ -2098,12 +2120,22 @@ const VideoCall: React.FC = () => {
       
       // Threshold para considerar que está falando (ajuste conforme necessário)
       const speechThreshold = 10;
-      setIsSpeaking(average > speechThreshold);
+      const isSpeakingNow = average > speechThreshold;
       
-      requestAnimationFrame(checkAudioLevel);
+      // Log apenas quando o estado muda para debug
+      if (isSpeakingNow !== isSpeaking) {
+        console.log(`🎤 Audio level: ${average.toFixed(2)}, Speaking: ${isSpeakingNow}`);
+      }
+      
+      setIsSpeaking(isSpeakingNow);
+      
+      // Continuar monitoramento
+      audioMonitoringId.current = requestAnimationFrame(checkAudioLevel);
     };
     
-    checkAudioLevel();
+    // Iniciar monitoramento
+    audioMonitoringId.current = requestAnimationFrame(checkAudioLevel);
+    console.log('🎤 Monitoramento de áudio iniciado');
   };
 
   // Sistema de notificações
