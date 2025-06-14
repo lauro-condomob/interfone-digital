@@ -24,23 +24,6 @@ const Container = styled.div`
   }
 `;
 
-const VideoContainer = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin: 20px 0;
-  width: 100%;
-  max-width: 1000px;
-  justify-items: center;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 15px;
-    margin: 15px 0;
-    max-width: 100%;
-  }
-`;
-
 const VideoContainerSingle = styled.div`
   display: flex;
   justify-content: center;
@@ -327,7 +310,7 @@ const IdDisplay = styled.div`
   @media (max-width: 768px) {
     text-align: center;
     padding: 25px 15px;
-    margin: 20px 0;
+    margin: 15px 0;
     max-width: 90%;
   }
 `;
@@ -352,9 +335,9 @@ const MainTitle = styled.h1`
   text-align: center;
   
   @media (max-width: 768px) {
-    font-size: 28px;
-    margin-bottom: 25px;
-    margin-top: 50px;
+    font-size: 24px;
+    margin-bottom: 22px;
+    margin-top: 40px;
   }
 `;
 
@@ -380,10 +363,50 @@ const ErrorMessage = styled(BaseMessage)`
   color: #cc0000;
 `;
 
-const LoadingMessage = styled(BaseMessage)`
-  background-color: #e6f3ff;
-  border: 1px solid #99ccff;
+const FloatingLoadingOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(2px);
+`;
+
+const FloatingLoadingMessage = styled.div`
+  background: linear-gradient(135deg, #e6f3ff, #f0f8ff);
+  border: 2px solid #007bff;
+  border-radius: 16px;
+  padding: 30px 40px;
+  text-align: center;
   color: #0066cc;
+  font-size: 18px;
+  font-weight: 600;
+  box-shadow: 0 8px 32px rgba(0, 123, 255, 0.3);
+  max-width: 400px;
+  width: 90%;
+  animation: pulse 2s ease-in-out infinite;
+  
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 8px 32px rgba(0, 123, 255, 0.3);
+    }
+    50% {
+      transform: scale(1.02);
+      box-shadow: 0 12px 40px rgba(0, 123, 255, 0.4);
+    }
+  }
+  
+  @media (max-width: 768px) {
+    padding: 25px 30px;
+    font-size: 16px;
+    max-width: 90%;
+  }
 `;
 
 const StatusMessage = styled(BaseMessage)`
@@ -416,12 +439,6 @@ const PartnerIdOverlay = styled.div`
     padding: 6px 10px;
   }
   
-  @media (max-width: 480px) {
-    top: 10px;
-    left: 10px;
-    font-size: 12px;
-    padding: 5px 8px;
-  }
 `;
 
 const MicrophoneOverlay = styled.div<{ isActive: boolean }>`
@@ -443,20 +460,14 @@ const MicrophoneOverlay = styled.div<{ isActive: boolean }>`
   transition: all 0.2s ease;
   
   @media (max-width: 768px) {
+    background: rgba(0, 0, 0, 0.5);
     width: 35px;
     height: 35px;
-    font-size: 16px;
-    bottom: 12px;
-    right: 12px;
+    font-size: 14px;
+    bottom: 15px;
+    right: 15px;
   }
   
-  @media (max-width: 480px) {
-    width: 32px;
-    height: 32px;
-    font-size: 14px;
-    bottom: 10px;
-    right: 10px;
-  }
 `;
 
 const MicrophoneOverlaySmall = styled.div<{ isActive: boolean }>`
@@ -949,11 +960,11 @@ const CameraToggleButton = styled.button`
   }
   
   @media (max-width: 768px) {
-    bottom: 20px;
+    bottom: 15px;
     left: 15px;
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
+    width: 35px;
+    height: 35px;
+    font-size: 14px;
   }
 `;
 
@@ -2042,12 +2053,6 @@ const VideoCall: React.FC = () => {
     checkAudioLevel();
   };
 
-  const isMicrophoneActive = () => {
-    if (!stream) return false;
-    const audioTracks = stream.getAudioTracks();
-    return audioTracks.length > 0 && audioTracks[0].enabled;
-  };
-
   // Sistema de notificações
   const showNotification = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'info') => {
     const notification = {
@@ -2142,8 +2147,7 @@ const VideoCall: React.FC = () => {
     });
   }, [callAccepted, receivingCall, isCalling, partnerEndedCall, callEndReason]);
 
-  // Error boundary para capturar erros de renderização
-  const [renderError, setRenderError] = useState<string | null>(null);
+
 
   // useEffect para filtrar a lista de usuários disponíveis
   useEffect(() => {
@@ -2267,24 +2271,18 @@ const VideoCall: React.FC = () => {
       <Container>
         <MainTitle>📱 Interfone Digital</MainTitle>
         
-        {renderError && (
-          <ErrorMessage>
-            🚨 Erro na aplicação: {renderError}
-            <br />
-            <ReloadButton onClick={() => window.location.reload()}>
-              Recarregar Página
-            </ReloadButton>
-          </ErrorMessage>
-        )}
+
         
         <IdDisplay>
           <IdText>Seu ID: {userId || "Configurando..."}</IdText>
         </IdDisplay>
 
         {isLoading && (
-          <LoadingMessage>
-            🔄 Carregando câmera e microfone...
-          </LoadingMessage>
+          <FloatingLoadingOverlay>
+            <FloatingLoadingMessage>
+              🔄 Carregando câmera e microfone...
+            </FloatingLoadingMessage>
+          </FloatingLoadingOverlay>
         )}
 
         {cameraError && (
