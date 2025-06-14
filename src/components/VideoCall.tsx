@@ -449,7 +449,7 @@ const MicrophoneOverlay = styled.div<{ isActive: boolean }>`
   right: 15px;
   width: 40px;
   height: 40px;
-  background: ${props => props.isActive ? 'rgba(34, 197, 94, 0.9)' : 'rgba(64, 64, 64, 0.9)'};
+  background: ${props => props.isActive ? 'rgba(34, 197, 94, 0.9)' : 'rgba(64, 64, 64, 0.5)'};
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -462,7 +462,6 @@ const MicrophoneOverlay = styled.div<{ isActive: boolean }>`
   transition: all 0.2s ease;
   
   @media (max-width: 768px) {
-    background: rgba(0, 0, 0, 0.5);
     width: 35px;
     height: 35px;
     font-size: 14px;
@@ -478,7 +477,7 @@ const MicrophoneOverlaySmall = styled.div<{ isActive: boolean }>`
   right: 25px;
   width: 24px;
   height: 24px;
-  background: ${props => props.isActive ? 'rgba(34, 197, 94, 0.9)' : 'rgba(64, 64, 64, 0.9)'};
+  background: ${props => props.isActive ? 'rgba(34, 197, 94, 0.9)' : 'rgba(64, 64, 64, 0.5)'};
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -985,9 +984,7 @@ interface CallData {
   candidate?: RTCIceCandidateInit;
 }
 
-const socket = io(`https://${window.location.hostname}`
-  //+ ':8000'
-, {
+const socket = io(`https://${window.location.hostname}:8000`, {
   transports: ['websocket', 'polling'],
   upgrade: true,
   rememberUpgrade: false,
@@ -1014,9 +1011,7 @@ let globalTurnServers: RTCIceServer[] = [];
 const loadTurnServers = async () => {
   try {
     const response = await fetch(
-      `https://${window.location.hostname}`
-      // +':8000'
-      +'/api/turn',
+      `https://${window.location.hostname}:8000/api/turn`,
       {
         headers: {"Accept": "application/json"},
       }
@@ -1109,7 +1104,6 @@ const VideoCall: React.FC = () => {
   const audioContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
   const microphone = useRef<MediaStreamAudioSourceNode | null>(null);
-  const audioMonitoringId = useRef<number | null>(null);
   const ringtoneInterval = useRef<number | null>(null);
   const ringtoneAudio = useRef<HTMLAudioElement | null>(null);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
@@ -1773,9 +1767,6 @@ const VideoCall: React.FC = () => {
         stream.getTracks().forEach(track => track.stop());
       }
       
-      // Cleanup da análise de áudio
-      cleanupAudioAnalysis();
-      
       // Cleanup do audio context
       if (audioContext.current) {
         audioContext.current.close();
@@ -2025,66 +2016,23 @@ const VideoCall: React.FC = () => {
     setShowPartnersPopup(false);
   };
 
-  const cleanupAudioAnalysis = () => {
-    try {
-      // Parar monitoramento anterior
-      if (audioMonitoringId.current) {
-        cancelAnimationFrame(audioMonitoringId.current);
-        audioMonitoringId.current = null;
-        console.log('🧹 Monitoramento de áudio anterior parado');
-      }
-      
-      // Desconectar e limpar microphone source anterior
-      if (microphone.current) {
-        microphone.current.disconnect();
-        microphone.current = null;
-        console.log('🧹 Microphone anterior desconectado');
-      }
-      
-      // Limpar analyser anterior
-      if (analyser.current) {
-        analyser.current = null;
-        console.log('🧹 Analyser anterior limpo');
-      }
-    } catch (error) {
-      console.error('Erro ao limpar análise de áudio anterior:', error);
-    }
-  };
-
   const setupAudioAnalysis = (stream: MediaStream) => {
     try {
-      console.log('🎤 Configurando análise de áudio...');
-      
-      // Limpar recursos anteriores
-      cleanupAudioAnalysis();
-      
-      if (!audioContext.current) {
-        audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        console.log('🎤 AudioContext criado');
-      }
-      
-      // Reativar o contexto se estiver suspenso
-      if (audioContext.current.state === 'suspended') {
-        audioContext.current.resume();
-        console.log('🎤 AudioContext reativado');
-      }
+      // if (!audioContext.current) {
+      audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // }
       
       analyser.current = audioContext.current.createAnalyser();
       analyser.current.fftSize = 256;
       analyser.current.smoothingTimeConstant = 0.3;
-      console.log('🎤 Analyser configurado');
       
       const audioTracks = stream.getAudioTracks();
       if (audioTracks.length > 0) {
         microphone.current = audioContext.current.createMediaStreamSource(stream);
         microphone.current.connect(analyser.current);
-        console.log('🎤 Microphone source conectado ao analyser');
         
         // Iniciar monitoramento de áudio
         startAudioMonitoring();
-        console.log('🎤 Monitoramento de áudio iniciado');
-      } else {
-        console.warn('⚠️ Nenhuma track de áudio encontrada no stream');
       }
     } catch (error) {
       console.error('Erro ao configurar análise de áudio:', error);
@@ -2092,26 +2040,12 @@ const VideoCall: React.FC = () => {
   };
 
   const startAudioMonitoring = () => {
-    if (!analyser.current) {
-      console.warn('⚠️ Analyser não disponível para monitoramento');
-      return;
-    }
-    
-    // Parar monitoramento anterior se existir
-    if (audioMonitoringId.current) {
-      cancelAnimationFrame(audioMonitoringId.current);
-      console.log('🔄 Parando monitoramento anterior');
-    }
+    if (!analyser.current) return;
     
     const dataArray = new Uint8Array(analyser.current.frequencyBinCount);
-    console.log('📊 DataArray criado com tamanho:', dataArray.length);
     
     const checkAudioLevel = () => {
-      if (!analyser.current) {
-        console.log('⚠️ Analyser não disponível, parando monitoramento');
-        audioMonitoringId.current = null;
-        return;
-      }
+      if (!analyser.current) return;
       
       analyser.current.getByteFrequencyData(dataArray);
       
@@ -2120,22 +2054,14 @@ const VideoCall: React.FC = () => {
       
       // Threshold para considerar que está falando (ajuste conforme necessário)
       const speechThreshold = 10;
-      const isSpeakingNow = average > speechThreshold;
+
+      console.log('🎤 Nível de áudio:', average);
+      setIsSpeaking(average > speechThreshold);
       
-      // Log apenas quando o estado muda para debug
-      if (isSpeakingNow !== isSpeaking) {
-        console.log(`🎤 Audio level: ${average.toFixed(2)}, Speaking: ${isSpeakingNow}`);
-      }
-      
-      setIsSpeaking(isSpeakingNow);
-      
-      // Continuar monitoramento
-      audioMonitoringId.current = requestAnimationFrame(checkAudioLevel);
+      requestAnimationFrame(checkAudioLevel);
     };
     
-    // Iniciar monitoramento
-    audioMonitoringId.current = requestAnimationFrame(checkAudioLevel);
-    console.log('🎤 Monitoramento de áudio iniciado');
+    checkAudioLevel();
   };
 
   // Sistema de notificações
@@ -2172,6 +2098,16 @@ const VideoCall: React.FC = () => {
     setIsUsingFrontCamera(!isUsingFrontCamera);
     
     try {
+      // Desconectar análise de áudio do stream atual
+      console.log('🎤 Desconectando análise de áudio...');
+      if (microphone.current) {
+        microphone.current.disconnect();
+        microphone.current = null;
+      }
+      if (analyser.current) {
+        analyser.current = null;
+      }
+      
       // Obter o novo stream diretamente da função initializeCamera
       const newStream = await initializeCamera(newFacingMode);
       
@@ -2188,7 +2124,7 @@ const VideoCall: React.FC = () => {
         const newVideoTrack = newStream.getVideoTracks()[0];
         const newAudioTrack = newStream.getAudioTracks()[0];
         
-        // Substituir track de vídeo
+        // Atualizar track de vídeo
         if (newVideoTrack) {
           const videoSender = peerConnection.current.getSenders().find(sender => 
             sender.track && sender.track.kind === 'video'
@@ -2200,9 +2136,11 @@ const VideoCall: React.FC = () => {
           } else {
             console.warn('⚠️ Video sender não encontrado no peer connection');
           }
+        } else {
+          console.warn('⚠️ Video track não encontrada no novo stream');
         }
         
-        // Substituir track de áudio
+        // Atualizar track de áudio
         if (newAudioTrack) {
           const audioSender = peerConnection.current.getSenders().find(sender => 
             sender.track && sender.track.kind === 'audio'
@@ -2210,21 +2148,21 @@ const VideoCall: React.FC = () => {
           
           if (audioSender) {
             await audioSender.replaceTrack(newAudioTrack);
-            console.log('✅ Track de áudio atualizada com nova câmera!');
+            console.log('✅ Track de áudio atualizada!');
           } else {
             console.warn('⚠️ Audio sender não encontrado no peer connection');
           }
+        } else {
+          console.warn('⚠️ Audio track não encontrada no novo stream');
         }
         
         // Notificar o usuário que a mudança foi transmitida
         showNotification(`Câmera ${newFacingMode === 'user' ? 'frontal' : 'traseira'} transmitida para o parceiro`, 'success');
       }
       
-      // Reconfigurar análise de áudio para o novo stream
-      if (newStream) {
-        console.log('🎤 Reconfigurando análise de áudio para o novo stream...');
-        setupAudioAnalysis(newStream);
-      }
+      // Reconectar análise de áudio com o novo stream
+      console.log('🎤 Reconectando análise de áudio com novo stream...');
+      setupAudioAnalysis(newStream);
       
     } catch (error) {
       console.error('❌ Erro ao alternar câmera:', error);
