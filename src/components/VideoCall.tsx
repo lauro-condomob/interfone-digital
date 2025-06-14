@@ -984,7 +984,9 @@ interface CallData {
   candidate?: RTCIceCandidateInit;
 }
 
-const socket = io(`https://${window.location.hostname}:8000`, {
+const socket = io(`https://${window.location.hostname}`
+                  // + ':8000'
+  , {
   transports: ['websocket', 'polling'],
   upgrade: true,
   rememberUpgrade: false,
@@ -1011,7 +1013,9 @@ let globalTurnServers: RTCIceServer[] = [];
 const loadTurnServers = async () => {
   try {
     const response = await fetch(
-      `https://${window.location.hostname}:8000/api/turn`,
+      `https://${window.location.hostname}`
+      // + ':8000'
+      +'/api/turn',
       {
         headers: {"Accept": "application/json"},
       }
