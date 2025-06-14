@@ -328,7 +328,7 @@ const IdDisplay = styled.div`
     text-align: center;
     padding: 25px 15px;
     margin: 20px 0;
-    max-width: 100%;
+    max-width: 90%;
   }
 `;
 
@@ -693,7 +693,7 @@ const LogsOverlay = styled.div`
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 9999;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -819,6 +819,108 @@ const ErrorReloadButton = styled.button`
   margin-top: 10px;
 `;
 
+// Componentes de notificação
+const NotificationsContainer = styled.div`
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10002;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 400px;
+  
+  @media (max-width: 768px) {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+`;
+
+const NotificationItem = styled.div<{ type: 'success' | 'info' | 'warning' | 'error' }>`
+  padding: 15px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  animation: slideIn 0.3s ease-out;
+  cursor: pointer;
+  
+  background: ${props => {
+    switch (props.type) {
+      case 'success': return '#d4edda';
+      case 'info': return '#d1ecf1';
+      case 'warning': return '#fff3cd';
+      case 'error': return '#f8d7da';
+      default: return '#d1ecf1';
+    }
+  }};
+  
+  color: ${props => {
+    switch (props.type) {
+      case 'success': return '#155724';
+      case 'info': return '#0c5460';
+      case 'warning': return '#856404';
+      case 'error': return '#721c24';
+      default: return '#0c5460';
+    }
+  }};
+  
+  border-left: 4px solid ${props => {
+    switch (props.type) {
+      case 'success': return '#28a745';
+      case 'info': return '#17a2b8';
+      case 'warning': return '#ffc107';
+      case 'error': return '#dc3545';
+      default: return '#17a2b8';
+    }
+  }};
+  
+  &:hover {
+    opacity: 0.8;
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+`;
+
+const NotificationContent = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+`;
+
+const NotificationIcon = styled.span`
+  font-size: 16px;
+`;
+
+const NotificationClose = styled.button`
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  margin-left: 10px;
+  opacity: 0.7;
+  
+  &:hover {
+    opacity: 1;
+  }
+`;
+
 // ============================================================================
 // INTERFACES & SOCKET SETUP
 // ============================================================================
@@ -920,13 +1022,19 @@ const VideoCall: React.FC = () => {
   const [partnerEndedCall, setPartnerEndedCall] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isRinging, setIsRinging] = useState(false);
-  const [callEndReason, setCallEndReason] = useState<'ended' | 'rejected' | null>(null);
+  const [callEndReason, setCallEndReason] = useState<'ended' | 'rejected' | 'busy' | 'disconnected' | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>(() => [...globalLogs]);
   const [showLogsPopup, setShowLogsPopup] = useState(false);
   const [allUsers, setAllUsers] = useState<string[]>([]);
   const [availableUsers, setAvailableUsers] = useState<string[]>([]);
   const [showPartnersPopup, setShowPartnersPopup] = useState(false);
   const [shouldCall, setShouldCall] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{
+    id: number;
+    message: string;
+    type: 'success' | 'info' | 'warning' | 'error';
+    timestamp: number;
+  }>>([]);
 
   // Estados derivados (computados) - simplifica lógica de renderização
   const isCallActive = callAccepted || isCalling || receivingCall;
@@ -1242,9 +1350,46 @@ const VideoCall: React.FC = () => {
       socket.on("callUser", async (data: CallData) => {
         try {
           console.log('📞 RECEBENDO CHAMADA de:', data.from);
-          console.log('Estado atual:', { stream: !!stream, hasVideo: !!userVideo.current });
+          console.log('Estado atual antes:', { 
+            receivingCall, 
+            isCalling, 
+            callAccepted, 
+            partnerEndedCall,
+            stream: !!stream, 
+            hasVideo: !!userVideo.current 
+          });
+          
+          // Verificar se já está em uma chamada ativa
+          const isInActiveCall = callAccepted || isCalling || receivingCall;
+          
+          if (isInActiveCall) {
+            console.log('⚠️ Usuário já está em chamada ativa - rejeitando chamada automaticamente');
+            // Notificar o chamador que está ocupado
+            socket.emit("rejectCall", {
+              to: data.from,
+              from: userId,
+              reason: "busy"
+            });
+            return;
+          }
+          
+          // Resetar estados anteriores para garantir estado limpo
+          resetCallStates();
+          
+          // Definir estado de recebimento de chamada
           setReceivingCall(true);
           setCaller(data.from);
+          setPartnerEndedCall(false);
+          setCallEndReason(null);
+          
+          console.log('✅ Estado automaticamente alterado para RECEBER CHAMADA');
+          console.log('Estado atual após:', { 
+            receivingCall: true, 
+            caller: data.from,
+            isCalling: false, 
+            callAccepted: false, 
+            partnerEndedCall: false 
+          });
           
           // Iniciar toque
           startRingtone();
@@ -1344,10 +1489,11 @@ const VideoCall: React.FC = () => {
         }
       });
 
-      socket.on("callRejected", (data: { from: string }) => {
+      socket.on("callRejected", (data: { from: string, reason?: string }) => {
         try {
-          console.log('❌ CHAMADA RECUSADA! ID do receptor:', data.from);
-          console.log('*** A chamada foi recusada pelo receptor ***');
+          const reason = data.reason || 'rejected';
+          console.log(`❌ CHAMADA ${reason === 'busy' ? 'OCUPADO' : 'RECUSADA'}! ID do receptor:`, data.from);
+          console.log(`*** A chamada foi ${reason === 'busy' ? 'recusada - usuário ocupado' : 'recusada pelo receptor'} ***`);
           console.log('Estados antes do processamento da recusa:', {
             callAccepted,
             isCalling,
@@ -1356,6 +1502,11 @@ const VideoCall: React.FC = () => {
             hasStream: !!stream,
             hasRemoteStream: !!remoteStream
           });
+          
+          // Mostrar mensagem específica se o usuário estiver ocupado
+          if (reason === 'busy') {
+            alert(`📞 ${data.from} está ocupado em outra chamada. Tente novamente mais tarde.`);
+          }
           
           // Fechar peer connection primeiro
           if (peerConnection.current) {
@@ -1366,7 +1517,7 @@ const VideoCall: React.FC = () => {
           // Então atualizar estados em ordem específica
           setIsCalling(false);
           setPartnerEndedCall(true);
-          setCallEndReason('rejected');
+          setCallEndReason(reason === 'busy' ? 'busy' : 'rejected');
           
           console.log('✅ Estados atualizados após recusa da chamada');
           
@@ -1402,6 +1553,47 @@ const VideoCall: React.FC = () => {
         setAllUsers(users);
       });
 
+      socket.on("userConnected", (data: { userId: string, message: string }) => {
+        console.log("👋 Novo usuário conectado:", data);
+        showNotification(data.message, 'success');
+      });
+
+      socket.on("userDisconnected", (data: { userId: string, message: string }) => {
+        console.log("👋 Usuário desconectado:", data);
+        showNotification(data.message, 'info');
+      });
+
+      socket.on("partnerDisconnected", (data: { from: string, message: string }) => {
+        try {
+          console.log('🔌 PARCEIRO SE DESCONECTOU DURANTE A CHAMADA!', data.from);
+          console.log('*** Chamada interrompida por desconexão ***');
+          
+          // Parar toque se estiver tocando
+          stopRingtone();
+          
+          // Fechar peer connection
+          if (peerConnection.current) {
+            peerConnection.current.close();
+            peerConnection.current = undefined;
+          }
+          
+          // Atualizar estados para indicar desconexão
+          setPartnerEndedCall(true);
+          setCallEndReason('disconnected');
+          setCallAccepted(false);
+          setIsCalling(false);
+          setReceivingCall(false);
+          
+          // Mostrar notificação
+          showNotification(data.message, 'warning');
+          
+          console.log('✅ Estados atualizados após desconexão do parceiro');
+          
+        } catch (error) {
+          console.error('❌ Error in partnerDisconnected handler:', error);
+        }
+      });
+
     } catch (error) {
       console.error('❌ ERRO CRÍTICO no useEffect principal:', error);
       setCameraError(`Erro crítico na aplicação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
@@ -1425,6 +1617,9 @@ const VideoCall: React.FC = () => {
         socket.off("userIdError");
         socket.off("callError");
         socket.off("usersList");
+        socket.off("userConnected");
+        socket.off("userDisconnected");
+        socket.off("partnerDisconnected");
         
         if (peerConnection.current) {
           peerConnection.current.close();
@@ -1768,6 +1963,27 @@ const VideoCall: React.FC = () => {
     return audioTracks.length > 0 && audioTracks[0].enabled;
   };
 
+  // Sistema de notificações
+  const showNotification = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'info') => {
+    const notification = {
+      id: Date.now(),
+      message,
+      type,
+      timestamp: Date.now()
+    };
+    
+    setNotifications(prev => [...prev, notification]);
+    
+    // Remover notificação após 5 segundos
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    }, 5000);
+  };
+
+  const removeNotification = (id: number) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
   // Debug useEffect para monitorar estados dos botões
   useEffect(() => {
     console.log('🔍 ESTADOS DOS BOTÕES:', {
@@ -2044,7 +2260,12 @@ const VideoCall: React.FC = () => {
           {partnerEndedCall && (
             <CallEndedContainer>
               <CallEndedMessage>
-                📞 {currentPartner} {callEndReason === 'rejected' ? 'recusou a chamada' : 'encerrou a chamada'}
+                📞 {currentPartner} {
+                  callEndReason === 'rejected' ? 'recusou a chamada' : 
+                  callEndReason === 'busy' ? 'estava ocupado' : 
+                  callEndReason === 'disconnected' ? 'se desconectou durante a chamada' :
+                  'encerrou a chamada'
+                }
               </CallEndedMessage>
               <Button onClick={leaveCall}>
                 Finalizar e Voltar
@@ -2085,6 +2306,34 @@ const VideoCall: React.FC = () => {
               </PopupCloseButton>
             </PopupContainer>
           </PopupOverlay>
+        )}
+
+        {/* Sistema de Notificações */}
+        {notifications.length > 0 && (
+          <NotificationsContainer>
+            {notifications.map((notification) => (
+              <NotificationItem
+                key={notification.id}
+                type={notification.type}
+                onClick={() => removeNotification(notification.id)}
+              >
+                <NotificationContent>
+                  <NotificationIcon>
+                    {notification.type === 'success' ? '✅' : 
+                     notification.type === 'info' ? 'ℹ️' : 
+                     notification.type === 'warning' ? '⚠️' : '❌'}
+                  </NotificationIcon>
+                  {notification.message}
+                </NotificationContent>
+                <NotificationClose onClick={(e) => {
+                  e.stopPropagation();
+                  removeNotification(notification.id);
+                }}>
+                  ×
+                </NotificationClose>
+              </NotificationItem>
+            ))}
+          </NotificationsContainer>
         )}
       </Container>
     );

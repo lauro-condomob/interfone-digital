@@ -68,9 +68,58 @@ const io = new Server(server, {
 const users = new Map(); // customId -> socketId
 const socketToUser = new Map(); // socketId -> customId
 
+// Rastreamento de chamadas ativas para detectar desconexões durante chamadas
+const activeCalls = new Map(); // userId -> { partnerId, callState: 'calling' | 'active' }
+
 function broadcastUsersList() {
-  io.emit("usersList", Array.from(users.keys()));
+  const usersList = Array.from(users.keys());
+  io.emit("usersList", usersList);
 }
+
+// Funções para gerenciar chamadas ativas
+function setCallState(userId, partnerId, state) {
+  activeCalls.set(userId, { partnerId, callState: state });
+  console.log(`📞 Call state updated: ${userId} -> ${partnerId} (${state})`);
+}
+
+function removeCallState(userId) {
+  if (activeCalls.has(userId)) {
+    const callInfo = activeCalls.get(userId);
+    activeCalls.delete(userId);
+    console.log(`📞 Call state removed for: ${userId} (was with ${callInfo.partnerId})`);
+    return callInfo;
+  }
+  return null;
+}
+
+function getCallPartner(userId) {
+  const callInfo = activeCalls.get(userId);
+  return callInfo ? callInfo.partnerId : null;
+}
+
+function notifyPartnerOfDisconnection(disconnectedUserId) {
+  const callInfo = activeCalls.get(disconnectedUserId);
+  if (callInfo) {
+    const partnerId = callInfo.partnerId;
+    const partnerSocketId = users.get(partnerId);
+    
+    if (partnerSocketId) {
+      console.log(`📞 Notifying ${partnerId} that ${disconnectedUserId} disconnected during call`);
+      io.to(partnerSocketId).emit("partnerDisconnected", {
+        from: disconnectedUserId,
+        message: `${disconnectedUserId} se desconectou durante a chamada`
+      });
+      
+      // Remover o estado de chamada do parceiro também
+      removeCallState(partnerId);
+    }
+    
+    // Remover o estado de chamada do usuário desconectado
+    removeCallState(disconnectedUserId);
+  }
+}
+
+
 
 io.on("connection", (socket) => {
   console.log(`Socket Connected: ${socket.id}`);
@@ -97,7 +146,15 @@ io.on("connection", (socket) => {
     
     console.log(`✅ User ${socket.id} registered with custom ID: ${customId}`);
     socket.emit("userIdConfirmed", { customId });
+    
+    // Broadcast da lista atualizada
     broadcastUsersList();
+    
+    // Notificar outros usuários sobre a nova conexão (exceto o próprio usuário)
+    socket.broadcast.emit("userConnected", {
+      userId: customId,
+      message: `👋 ${customId} se conectou!`
+    });
   });
 
   socket.on("callUser", (data) => {
@@ -110,6 +167,11 @@ io.on("connection", (socket) => {
     }
 
     console.log(`Call request from ${callerCustomId} (${socket.id}) to ${data.userToCall} (${targetSocketId})`);
+    
+    // Registrar estado de chamada como "calling"
+    setCallState(callerCustomId, data.userToCall, 'calling');
+    setCallState(data.userToCall, callerCustomId, 'calling');
+    
     io.to(targetSocketId).emit("callUser", {
       offer: data.offer,
       from: callerCustomId,
@@ -132,6 +194,10 @@ io.on("connection", (socket) => {
       to: data.to,
       from: answererCustomId
     });
+    
+    // Atualizar estado para chamada ativa
+    setCallState(answererCustomId, data.to, 'active');
+    setCallState(data.to, answererCustomId, 'active');
     
     console.log(`📤 Sending callAnswered event to ${data.to} (${callerSocketId})`);
     io.to(callerSocketId).emit("callAnswered", {
@@ -161,6 +227,11 @@ io.on("connection", (socket) => {
     if (!targetSocketId) return;
 
     console.log(`Call ended by ${senderCustomId} (${socket.id}), notifying ${data.to} (${targetSocketId})`);
+    
+    // Remover estados de chamada
+    removeCallState(senderCustomId);
+    removeCallState(data.to);
+    
     io.to(targetSocketId).emit("callEnded", {
       from: senderCustomId,
     });
@@ -172,18 +243,36 @@ io.on("connection", (socket) => {
     
     if (!callerSocketId) return;
 
-    console.log(`Call rejected by ${rejectorCustomId} (${socket.id}), notifying ${data.to} (${callerSocketId})`);
+    const reason = data.reason || 'rejected';
+    console.log(`Call ${reason} by ${rejectorCustomId} (${socket.id}), notifying ${data.to} (${callerSocketId})`);
+    
+    // Remover estados de chamada
+    removeCallState(rejectorCustomId);
+    removeCallState(data.to);
+    
     io.to(callerSocketId).emit("callRejected", {
       from: rejectorCustomId,
+      reason: reason
     });
   });
 
   socket.on("disconnect", () => {
     const customId = socketToUser.get(socket.id);
     if (customId) {
+      console.log(`User Disconnected: ${customId} (${socket.id})`);
+      
+      // Verificar se o usuário estava em uma chamada ativa e notificar o parceiro
+      notifyPartnerOfDisconnection(customId);
+      
+      // Remover mapeamentos do usuário
       users.delete(customId);
       socketToUser.delete(socket.id);
-      console.log(`User Disconnected: ${customId} (${socket.id})`);
+      
+      // Notificar outros usuários sobre a desconexão
+      socket.broadcast.emit("userDisconnected", {
+        userId: customId,
+        message: `👋 ${customId} se desconectou`
+      });
     } else {
       console.log(`Socket Disconnected: ${socket.id}`);
     }
