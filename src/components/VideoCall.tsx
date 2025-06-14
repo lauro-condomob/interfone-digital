@@ -2111,26 +2111,44 @@ const VideoCall: React.FC = () => {
         console.log('🔄 Atualizando peer connection com novo stream da câmera...');
         
         const newVideoTrack = newStream.getVideoTracks()[0];
+        const newAudioTrack = newStream.getAudioTracks()[0];
         
+        // Substituir track de vídeo
         if (newVideoTrack) {
-          // Encontrar o sender de vídeo
           const videoSender = peerConnection.current.getSenders().find(sender => 
             sender.track && sender.track.kind === 'video'
           );
           
           if (videoSender) {
-            // Substituir a track de vídeo com a nova track da câmera alternada
             await videoSender.replaceTrack(newVideoTrack);
-            console.log('✅ Track de vídeo do parceiro atualizada com nova câmera!');
-            
-            // Notificar o usuário que a mudança foi transmitida
-            showNotification(`Câmera ${newFacingMode === 'user' ? 'frontal' : 'traseira'} transmitida para o parceiro`, 'success');
+            console.log('✅ Track de vídeo atualizada com nova câmera!');
           } else {
             console.warn('⚠️ Video sender não encontrado no peer connection');
           }
-        } else {
-          console.warn('⚠️ Video track não encontrada no novo stream');
         }
+        
+        // Substituir track de áudio
+        if (newAudioTrack) {
+          const audioSender = peerConnection.current.getSenders().find(sender => 
+            sender.track && sender.track.kind === 'audio'
+          );
+          
+          if (audioSender) {
+            await audioSender.replaceTrack(newAudioTrack);
+            console.log('✅ Track de áudio atualizada com nova câmera!');
+          } else {
+            console.warn('⚠️ Audio sender não encontrado no peer connection');
+          }
+        }
+        
+        // Notificar o usuário que a mudança foi transmitida
+        showNotification(`Câmera ${newFacingMode === 'user' ? 'frontal' : 'traseira'} transmitida para o parceiro`, 'success');
+      }
+      
+      // Reconfigurar análise de áudio para o novo stream
+      if (newStream) {
+        console.log('🎤 Reconfigurando análise de áudio para o novo stream...');
+        setupAudioAnalysis(newStream);
       }
       
     } catch (error) {
