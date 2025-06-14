@@ -205,7 +205,9 @@ const ResponsiveButton = styled(BaseButton)`
   }
 `;
 
-const CallButton = styled(ResponsiveButton)``;
+const CallButton = styled(BaseButton)`
+  background-color: #28a745;
+`;
 const IdSetupButton = styled(ResponsiveButton)``;
 
 const Button = styled(BaseButton)`
@@ -310,7 +312,7 @@ const IdDisplay = styled.div`
   @media (max-width: 768px) {
     text-align: center;
     padding: 25px 15px;
-    margin: 15px 0;
+    margin: 0px 0;
     max-width: 90%;
   }
 `;
@@ -528,7 +530,7 @@ const IdSetupCard = styled.div`
   @media (max-width: 768px) {
     padding: 30px 20px;
     border-radius: 12px;
-    max-width: 100%;
+    max-width: 95%;
   }
 `;
 
@@ -695,6 +697,10 @@ const LogsButton = styled(Button)`
   bottom: 20px;
   right: 20px;
   z-index: 10000;
+
+  @media (max-width: 768px) {
+    right: auto;
+  }
 `;
 
 const LogsOverlay = styled.div`
@@ -1444,6 +1450,10 @@ const VideoCall: React.FC = () => {
             });
             return;
           }
+          
+          // Fechar popup de parceiros se estiver aberto
+          console.log('🔍 Estado do popup de parceiros:', showPartnersPopup);
+          setShowPartnersPopup(false);
           
           // Resetar estados anteriores para garantir estado limpo
           resetCallStates();
@@ -2308,10 +2318,9 @@ const VideoCall: React.FC = () => {
                   : "Selecionar parceiro para videochamada"
               }
             >
-              <span className="button-icon">📞</span>
-              <span className="button-text">
+             
                 {cameraError ? "Conectar (sem vídeo)" : "📞 Iniciar Chamada"}
-              </span>
+             
             </CallButton>
           </CallButtonContainer>
         )}
