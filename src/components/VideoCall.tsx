@@ -921,6 +921,42 @@ const NotificationClose = styled.button`
   }
 `;
 
+// Botão para alternar câmera (mobile only)
+const CameraToggleButton = styled.button`
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  @media (max-width: 768px) {
+    bottom: 20px;
+    left: 15px;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+`;
+
 // ============================================================================
 // INTERFACES & SOCKET SETUP
 // ============================================================================
@@ -1034,6 +1070,8 @@ const VideoCall: React.FC = () => {
     type: 'success' | 'info' | 'warning' | 'error';
     timestamp: number;
   }>>([]);
+  const [isUsingFrontCamera, setIsUsingFrontCamera] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Estados derivados (computados) - simplifica lógica de renderização
   const isCallActive = callAccepted || isCalling || receivingCall;
@@ -1078,8 +1116,9 @@ const VideoCall: React.FC = () => {
     setRemoteStream(null);
   };
 
-  const initializeCamera = async () => {
+  const initializeCamera = async (facingMode: 'user' | 'environment' = 'user'): Promise<MediaStream | null> => {
     console.log('🎥 Iniciando câmera após definição do ID...');
+    console.log('📱 Modo de câmera:', facingMode === 'user' ? 'Frontal' : 'Traseira');
     setIsLoading(true);
     
     console.log('🔍 Detalhes do dispositivo:', {
@@ -1099,22 +1138,36 @@ const VideoCall: React.FC = () => {
       } else {
         setCameraError("❌ Seu navegador não suporta acesso à câmera/microfone (navigator.mediaDevices não disponível).");
       }
-      return;
+      return null;
     }
 
     if (!navigator.mediaDevices.getUserMedia) {
       console.error('❌ getUserMedia não está disponível');
       setIsLoading(false);
       setCameraError("❌ Seu navegador não suporta getUserMedia.");
-      return;
+      return null;
     }
     
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      // Parar stream atual se existir
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      
+      const constraints = {
+        video: isMobile ? {
+          facingMode: facingMode
+        } : true,
+        audio: true
+      };
+      
+      console.log('📱 Constraints:', constraints);
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log('✅ Got local media stream successfully');
       setStream(mediaStream);
       setIsLoading(false);
       setCameraError(null);
+      return mediaStream;
     } catch (error) {
       console.error("❌ Error accessing media devices:", error);
       setIsLoading(false);
@@ -1130,6 +1183,7 @@ const VideoCall: React.FC = () => {
       }
       
       console.log('🔄 Continuando sem câmera...');
+      return null;
     }
   };
 
@@ -1308,6 +1362,16 @@ const VideoCall: React.FC = () => {
 
   useEffect(() => {
     console.log('🚀 VideoCall component mounted');
+    
+    // Detectar se é dispositivo móvel
+    const detectMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      const isMobileDevice = /android|avantgo|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i.test(userAgent) || /1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(userAgent.substr(0, 4));
+      setIsMobile(isMobileDevice);
+      console.log('📱 Dispositivo móvel detectado:', isMobileDevice);
+    };
+    
+    detectMobile();
     
     try {
       console.log('Initial socket ID:', socket.id);
@@ -1530,7 +1594,7 @@ const VideoCall: React.FC = () => {
         setIsIdSet(true);
         setIsSettingId(false);
         setIdError(null);
-        initializeCamera(); // Iniciar câmera após confirmar ID
+        initializeCamera().catch(console.error); // Iniciar câmera após confirmar ID
       });
 
       socket.on("userIdError", (data: { message: string }) => {
@@ -2005,6 +2069,63 @@ const VideoCall: React.FC = () => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
+  // Alternar entre câmera frontal e traseira (apenas mobile)
+  const toggleCamera = async () => {
+    if (!isMobile) {
+      console.log('⚠️ Troca de câmera disponível apenas em dispositivos móveis');
+      return;
+    }
+
+    console.log('🔄 Alternando câmera...');
+    const newFacingMode = isUsingFrontCamera ? 'environment' : 'user';
+    const previousState = isUsingFrontCamera;
+    setIsUsingFrontCamera(!isUsingFrontCamera);
+    
+    try {
+      // Obter o novo stream diretamente da função initializeCamera
+      const newStream = await initializeCamera(newFacingMode);
+      
+      if (!newStream) {
+        throw new Error('Falha ao obter novo stream da câmera');
+      }
+      
+      console.log(`✅ Câmera alternada para: ${newFacingMode === 'user' ? 'Frontal' : 'Traseira'}`);
+      
+      // Se estiver em uma chamada ativa, atualizar o peer connection com o NOVO stream
+      if (peerConnection.current && isCallActive) {
+        console.log('🔄 Atualizando peer connection com novo stream da câmera...');
+        
+        const newVideoTrack = newStream.getVideoTracks()[0];
+        
+        if (newVideoTrack) {
+          // Encontrar o sender de vídeo
+          const videoSender = peerConnection.current.getSenders().find(sender => 
+            sender.track && sender.track.kind === 'video'
+          );
+          
+          if (videoSender) {
+            // Substituir a track de vídeo com a nova track da câmera alternada
+            await videoSender.replaceTrack(newVideoTrack);
+            console.log('✅ Track de vídeo do parceiro atualizada com nova câmera!');
+            
+            // Notificar o usuário que a mudança foi transmitida
+            showNotification(`Câmera ${newFacingMode === 'user' ? 'frontal' : 'traseira'} transmitida para o parceiro`, 'success');
+          } else {
+            console.warn('⚠️ Video sender não encontrado no peer connection');
+          }
+        } else {
+          console.warn('⚠️ Video track não encontrada no novo stream');
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao alternar câmera:', error);
+      // Reverter estado em caso de erro
+      setIsUsingFrontCamera(previousState);
+      showNotification('Erro ao alternar câmera', 'error');
+    }
+  };
+
   // Debug useEffect para monitorar estados dos botões
   useEffect(() => {
     console.log('🔍 ESTADOS DOS BOTÕES:', {
@@ -2239,6 +2360,13 @@ const VideoCall: React.FC = () => {
                 📞 Atender Chamada
               </OverlayButton>
             )}
+            
+            {/* Botão para alternar câmera - apenas mobile */}
+            {isMobile && stream && (
+              <CameraToggleButton onClick={toggleCamera} title="Alternar câmera">
+                {isUsingFrontCamera ? '📷' : '📹'}
+              </CameraToggleButton>
+            )}
           </CallActiveContainer>
         )}
 
@@ -2251,6 +2379,13 @@ const VideoCall: React.FC = () => {
                 <MicrophoneOverlay isActive={isSpeaking}>
                   🎙️
                 </MicrophoneOverlay>
+                
+                {/* Botão para alternar câmera - apenas mobile */}
+                {isMobile && (
+                  <CameraToggleButton onClick={toggleCamera} title="Alternar câmera">
+                    {isUsingFrontCamera ? '📷' : '📹'}
+                  </CameraToggleButton>
+                )}
               </VideoWrapper>
             )}
             {!stream && !cameraError && (
