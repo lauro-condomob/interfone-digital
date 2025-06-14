@@ -66,18 +66,6 @@ const CallActiveContainer = styled.div`
   }
 `;
 
-const Video = styled.video`
-  width: 100%;
-  aspect-ratio: 4/3;
-  border-radius: 12px;
-  background-color: #000;
-  object-fit: cover;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  
-  @media (max-width: 768px) {
-    border-radius: 8px;
-  }
-`;
 
 const VideoInitialState = styled.video`
   width: 100%;
@@ -102,17 +90,17 @@ const PartnerVideoFull = styled.video`
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   
   @media (max-width: 768px) {
-    border-radius: 8px;
     aspect-ratio: 4/3;
+    border-radius: 8px;
   }
 `;
 
 const LocalVideoOverlay = styled.video`
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: 15px;
+  right: 10px;
   width: 20%;
-  aspect-ratio: 4/3;
+  aspect-ratio: 16/9;
   border-radius: 8px;
   background-color: #000;
   object-fit: cover;
@@ -122,38 +110,17 @@ const LocalVideoOverlay = styled.video`
   transition: transform 0.2s ease;
   
   @media (max-width: 768px) {
+    aspect-ratio: 4/3;
     width: 25%;
     bottom: 15px;
-    right: 15px;
+    right: 7px;
     border-radius: 6px;
     border-width: 2px;
   }
   
-  @media (max-width: 480px) {
-    width: 30%;
-    bottom: 10px;
-    right: 10px;
-  }
 `;
 
 // Input Components
-const InputContainer = styled.div`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 15px;
-  margin: 20px 0;
-  width: 100%;
-  max-width: 800px;
-  
-  @media (max-width: 768px) {
-    gap: 10px;
-    margin: 15px 0;
-    max-width: 100%;
-    padding: 0 15px;
-  }
-`;
 
 const BaseInput = styled.input`
   padding: 15px;
@@ -174,42 +141,15 @@ const BaseInput = styled.input`
   }
   
   @media (max-width: 768px) {
-    padding: 18px;
-    font-size: 18px;
+    padding: 12px;
+    font-size: 14px;
     flex: 1;
     max-width: none;
     min-width: 150px;
   }
 `;
 
-const CallInput = styled(BaseInput)``;
-
 const IdSetupInput = styled(BaseInput)``;
-
-const Input = styled.input`
-  padding: 15px;
-  margin: 8px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  font-size: 16px;
-  width: 100%;
-  max-width: 350px;
-  box-sizing: border-box;
-  transition: border-color 0.2s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-  }
-  
-  @media (max-width: 768px) {
-    padding: 18px;
-    font-size: 18px;
-    margin: 5px 0;
-    max-width: 100%;
-  }
-`;
 
 // Button Components
 const BaseButton = styled.button`
@@ -237,6 +177,11 @@ const BaseButton = styled.button`
     transform: none;
     box-shadow: none;
   }
+
+  @media (max-width: 768px) {
+    padding: 12px;
+    font-size: 14px;
+  }
 `;
 
 const ResponsiveButton = styled(BaseButton)`
@@ -247,11 +192,11 @@ const ResponsiveButton = styled(BaseButton)`
   }
   
   @media (max-width: 768px) {
-    padding: 10px;
-    font-size: 20px;
+    padding: 12px;
+    font-size: 14px;
     min-width: 60px;
     width: 60px;
-    min-height: 56px;
+    min-height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -272,7 +217,7 @@ const ResponsiveButton = styled(BaseButton)`
     
     .button-icon {
       display: inline;
-      font-size: 20px;
+      font-size: 14px;
     }
   }
 `;
@@ -289,8 +234,8 @@ const Button = styled(BaseButton)`
   }
   
   @media (max-width: 768px) {
-    padding: 18px 30px;
-    font-size: 18px;
+    padding: 12px 30px;
+    font-size: 14px;
     margin: 10px 0;
     width: 100%;
     max-width: 350px;
@@ -309,8 +254,8 @@ const EndCallButton = styled(BaseButton)`
   }
   
   @media (max-width: 768px) {
-    padding: 18px 30px;
-    font-size: 18px;
+    padding: 12px 30px;
+    font-size: 14px;
     margin: 10px 0;
     width: 100%;
     max-width: 350px;
@@ -350,17 +295,17 @@ const OverlayButton = styled.button`
   }
   
   @media (max-width: 768px) {
-    padding: 25px 35px;
-    font-size: 20px;
-    min-height: 70px;
+    padding: 12px 35px;
+    font-size: 14px;
+    min-height: 30px;
     min-width: 250px;
     border-radius: 16px;
   }
   
   @media (max-width: 480px) {
-    padding: 20px 25px;
-    font-size: 18px;
-    min-height: 60px;
+    padding: 12px 25px;
+    font-size: 14px;
+    min-height: 30px;
     min-width: 200px;
   }
 `;
@@ -533,20 +478,13 @@ const MicrophoneOverlaySmall = styled.div<{ isActive: boolean }>`
   transition: all 0.2s ease;
   
   @media (max-width: 768px) {
-    bottom: 15px;
+    bottom: 20px;
     right: 15px;
     width: 20px;
     height: 20px;
     font-size: 10px;
   }
   
-  @media (max-width: 480px) {
-    bottom: 15px;
-    right: 16px;
-    width: 18px;
-    height: 18px;
-    font-size: 9px;
-  }
 `;
 
 // ID Setup Components
@@ -735,9 +673,150 @@ const PopupCloseButton = styled.button`
   }
   
   @media (max-width: 768px) {
-    padding: 15px;
-    font-size: 18px;
+    padding: 12px;
+    font-size: 14px;
   }
+`;
+
+// Novos styled components para substituir estilos inline
+const LogsButton = styled(Button)`
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10000;
+`;
+
+const LogsOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const LogsContainer = styled.div`
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  width: 90vw;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: auto;
+`;
+
+const LogsContent = styled.div`
+  max-height: 400px;
+  overflow-y: auto;
+  background: #222;
+  color: #fff;
+  padding: 12px;
+  border-radius: 4px;
+`;
+
+const LogEntry = styled.div<{ logType: 'log' | 'warn' | 'error' }>`
+  margin-bottom: 8px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 4px;
+  color: ${props => 
+    props.logType === 'error' ? '#ff5555' : 
+    props.logType === 'warn' ? '#ffcc00' : '#fff'
+  };
+  font-weight: ${props => 
+    props.logType === 'error' || props.logType === 'warn' ? 'bold' : 'normal'
+  };
+`;
+
+const LogIcon = styled.span`
+  margin-right: 8px;
+`;
+
+const LogsCloseButton = styled(Button)`
+  margin-top: 16px;
+`;
+
+const ReloadButton = styled.button`
+  margin-top: 10px;
+  padding: 5px 10px;
+`;
+
+const CallButtonContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+`;
+
+const VideoPlaceholder = styled.div<{ aspectRatio?: string; fontSize?: string }>`
+  width: 100%;
+  aspect-ratio: ${props => props.aspectRatio || '16/9'};
+  background-color: #333;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: ${props => props.fontSize || '18px'};
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+
+  @media (max-width: 768px) {
+    aspect-ratio: 4/3;
+  }
+`;
+
+const VideoWrapper = styled.div`
+  position: relative;
+`;
+
+const WaitingVideoPlaceholder = styled.div`
+  width: 100%;
+  aspect-ratio: 4/3;
+  background-color: #333;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+`;
+
+const CameraErrorPlaceholder = styled.div`
+  width: 100%;
+  aspect-ratio: 4/3;
+  background-color: #666;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+  box-sizing: border-box;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+`;
+
+const CallEndedContainer = styled.div`
+  text-align: center;
+`;
+
+const CallEndedMessage = styled(StatusMessage)`
+  margin-bottom: 10px;
+`;
+
+const ErrorContainer = styled.div`
+  padding: 20px;
+  text-align: center;
+  background-color: #ffe6e6;
+`;
+
+const ErrorReloadButton = styled.button`
+  padding: 10px 20px;
+  margin-top: 10px;
 `;
 
 // ============================================================================
@@ -851,7 +930,6 @@ const VideoCall: React.FC = () => {
 
   // Refs
   const userVideo = useRef<HTMLVideoElement>(null);
-  const partnerVideo = useRef<HTMLVideoElement>(null);
   const partnerVideoFull = useRef<HTMLVideoElement>(null);
   const localVideoOverlay = useRef<HTMLVideoElement>(null);
   const peerConnection = useRef<RTCPeerConnection>();
@@ -973,12 +1051,6 @@ const VideoCall: React.FC = () => {
         const remoteStream = event.streams[0];
         console.log('Setting remote stream');
         setRemoteStream(remoteStream);
-        
-        if (partnerVideo.current) {
-          console.log('Assigning remote stream to video element');
-          partnerVideo.current.srcObject = remoteStream;
-          partnerVideo.current.play().catch(e => console.log('Remote video play error:', e));
-        }
       }
     };
 
@@ -1399,13 +1471,7 @@ const VideoCall: React.FC = () => {
 
   // useEffect separado para garantir que o remote stream seja aplicado ao elemento de vídeo
   useEffect(() => {
-    if (remoteStream && partnerVideo.current) {
-      console.log('Applying remote stream to video element from useEffect');
-      partnerVideo.current.srcObject = remoteStream;
-      partnerVideo.current.play().catch(e => console.log('Remote video play error from useEffect:', e));
-    }
-    
-    // Aplicar também ao vídeo fullscreen quando há atividade de chamada
+    // Aplicar ao vídeo fullscreen quando há atividade de chamada
     if (remoteStream && partnerVideoFull.current && (callAccepted || isCalling || receivingCall)) {
       partnerVideoFull.current.srcObject = remoteStream;
       partnerVideoFull.current.play().catch(e => console.log('Partner fullscreen video play error:', e));
@@ -1791,46 +1857,32 @@ const VideoCall: React.FC = () => {
 
   // Antes do return principal do componente, defina o botão e o popup de logs para serem renderizados sempre
   const logsButtonAndPopup = <>
-    <Button onClick={() => setShowLogsPopup(true)} style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 10000 }}>
+    <LogsButton onClick={() => setShowLogsPopup(true)}>
       Logs
-    </Button>
+    </LogsButton>
     {showLogsPopup && (
-      <div style={{
-        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-        background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center'
-      }}>
-        <div style={{
-          background: '#fff', borderRadius: 8, padding: 24, width: '90vw', maxWidth: 600, maxHeight: '80vh', overflow: 'auto'
-        }}>
+      <LogsOverlay>
+        <LogsContainer>
           <h2>Logs capturados</h2>
-          <div
-            ref={logsContainerRef}
-            style={{ maxHeight: 400, overflowY: 'auto', background: '#222', color: '#fff', padding: 12, borderRadius: 4 }}
-          >
+          <LogsContent ref={logsContainerRef}>
             {logs.length === 0
               ? <div>Nenhum log capturado.</div>
               : logs.map((log, idx) => (
-                  <div key={idx} style={{
-                    marginBottom: 8,
-                    borderBottom: '1px solid #444',
-                    paddingBottom: 4,
-                    color: log.type === 'error' ? '#ff5555' : log.type === 'warn' ? '#ffcc00' : '#fff',
-                    fontWeight: log.type === 'error' ? 'bold' : log.type === 'warn' ? 'bold' : 'normal'
-                  }}>
-                    <span style={{ marginRight: 8 }}>
+                  <LogEntry key={idx} logType={log.type}>
+                    <LogIcon>
                       {log.type === 'error' ? '❌' : log.type === 'warn' ? '⚠️' : 'ℹ️'}
-                    </span>
+                    </LogIcon>
                     {log.message}
-                  </div>
+                  </LogEntry>
                 ))
             }
             <div ref={logsEndRef} />
-          </div>
-          <Button onClick={() => setShowLogsPopup(false)} style={{ marginTop: 16 }}>
+          </LogsContent>
+          <LogsCloseButton onClick={() => setShowLogsPopup(false)}>
             Fechar
-          </Button>
-        </div>
-      </div>
+          </LogsCloseButton>
+        </LogsContainer>
+      </LogsOverlay>
     )}
   </>;
 
@@ -1888,9 +1940,9 @@ const VideoCall: React.FC = () => {
           <ErrorMessage>
             🚨 Erro na aplicação: {renderError}
             <br />
-            <button onClick={() => window.location.reload()} style={{marginTop: '10px', padding: '5px 10px'}}>
+            <ReloadButton onClick={() => window.location.reload()}>
               Recarregar Página
-            </button>
+            </ReloadButton>
           </ErrorMessage>
         )}
         
@@ -1917,7 +1969,7 @@ const VideoCall: React.FC = () => {
         )}
 
         {!callAccepted && !isCalling && !receivingCall && !partnerEndedCall && (
-          <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}>
+          <CallButtonContainer>
             <CallButton 
               onClick={openPartnersPopup} 
               disabled={false}
@@ -1929,10 +1981,10 @@ const VideoCall: React.FC = () => {
             >
               <span className="button-icon">📞</span>
               <span className="button-text">
-                {cameraError ? "Conectar (sem vídeo)" : "Iniciar Chamada"}
+                {cameraError ? "Conectar (sem vídeo)" : "📞 Iniciar Chamada"}
               </span>
             </CallButton>
-          </div>
+          </CallButtonContainer>
         )}
 
         {/* Layout durante chamada ativa - vídeo overlay */}
@@ -1942,20 +1994,9 @@ const VideoCall: React.FC = () => {
             {remoteStream ? (
               <PartnerVideoFull playsInline ref={partnerVideoFull} autoPlay />
             ) : (
-              <div style={{ 
-                width: '100%', 
-                aspectRatio: '16/9',
-                backgroundColor: '#333', 
-                borderRadius: '12px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                color: 'white',
-                fontSize: '18px',
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)'
-              }}>
+              <VideoPlaceholder>
                 {isCalling ? '📞 Chamando...' : receivingCall ? '📞 Chamada recebida' : '📹 Aguardando vídeo do parceiro...'}
-              </div>
+              </VideoPlaceholder>
             )}
             
             {/* ID do parceiro sobreposto */}
@@ -2005,48 +2046,23 @@ const VideoCall: React.FC = () => {
               return (
                 <ContainerComponent>
                   {stream && (
-                    <div style={{ position: 'relative' }}>
+                    <VideoWrapper>
                       <VideoInitialState playsInline muted ref={userVideo} autoPlay />
                       <MicrophoneOverlay isActive={isSpeaking}>
                         🎙️
                       </MicrophoneOverlay>
-                    </div>
+                    </VideoWrapper>
                   )}
                   {!stream && !cameraError && (
-                    <div style={{ 
-                      width: '100%', 
-                      aspectRatio: '4/3',
-                      backgroundColor: '#333', 
-                      borderRadius: '12px', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      color: 'white',
-                      fontSize: '16px',
-                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)'
-                    }}>
+                    <WaitingVideoPlaceholder>
                       📹 Aguardando câmera...
-                    </div>
+                    </WaitingVideoPlaceholder>
                   )}
                   {cameraError && (
-                    <div style={{ 
-                      width: '100%', 
-                      aspectRatio: '4/3',
-                      backgroundColor: '#666', 
-                      borderRadius: '12px', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      color: 'white',
-                      fontSize: '14px',
-                      textAlign: 'center',
-                      padding: '20px',
-                      boxSizing: 'border-box',
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-                    }}>
+                    <CameraErrorPlaceholder>
                       📱 Câmera não disponível<br/>
                       (HTTPS necessário no mobile)
-                    </div>
+                    </CameraErrorPlaceholder>
                   )}
                 </ContainerComponent>
               );
@@ -2066,14 +2082,14 @@ const VideoCall: React.FC = () => {
             </EndCallButton>
           )}
           {partnerEndedCall && (
-            <div style={{ textAlign: 'center' }}>
-              <StatusMessage style={{ marginBottom: '10px' }}>
+            <CallEndedContainer>
+              <CallEndedMessage>
                 📞 {caller || partnerId} {callEndReason === 'rejected' ? 'recusou a chamada' : 'encerrou a chamada'}
-              </StatusMessage>
+              </CallEndedMessage>
               <Button onClick={leaveCall}>
                 Finalizar e Voltar
               </Button>
-            </div>
+            </CallEndedContainer>
           )}
         </div>
 
@@ -2115,13 +2131,13 @@ const VideoCall: React.FC = () => {
   } catch (error) {
     console.error('❌ ERRO CRÍTICO na renderização:', error);
     return (
-      <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#ffe6e6' }}>
+      <ErrorContainer>
         <h2>🚨 Erro na Aplicação</h2>
         <p>Ocorreu um erro crítico. Verifique o console do navegador.</p>
-        <button onClick={() => window.location.reload()} style={{padding: '10px 20px', marginTop: '10px'}}>
+        <ErrorReloadButton onClick={() => window.location.reload()}>
           Recarregar Página
-        </button>
-      </div>
+        </ErrorReloadButton>
+      </ErrorContainer>
     );
   }
 };
