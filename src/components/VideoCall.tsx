@@ -1772,6 +1772,9 @@ const VideoCall: React.FC = () => {
         stream.getTracks().forEach(track => track.stop());
       }
       
+      // Cleanup da análise de áudio
+      cleanupAudioAnalysis();
+      
       // Cleanup do audio context
       if (audioContext.current) {
         audioContext.current.close();
@@ -2021,23 +2024,59 @@ const VideoCall: React.FC = () => {
     setShowPartnersPopup(false);
   };
 
+  const cleanupAudioAnalysis = () => {
+    try {
+      // Desconectar e limpar microphone source anterior
+      if (microphone.current) {
+        microphone.current.disconnect();
+        microphone.current = null;
+        console.log('🧹 Microphone anterior desconectado');
+      }
+      
+      // Limpar analyser anterior
+      if (analyser.current) {
+        analyser.current = null;
+        console.log('🧹 Analyser anterior limpo');
+      }
+    } catch (error) {
+      console.error('Erro ao limpar análise de áudio anterior:', error);
+    }
+  };
+
   const setupAudioAnalysis = (stream: MediaStream) => {
     try {
+      console.log('🎤 Configurando análise de áudio...');
+      
+      // Limpar recursos anteriores
+      cleanupAudioAnalysis();
+      
       if (!audioContext.current) {
         audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        console.log('🎤 AudioContext criado');
+      }
+      
+      // Reativar o contexto se estiver suspenso
+      if (audioContext.current.state === 'suspended') {
+        audioContext.current.resume();
+        console.log('🎤 AudioContext reativado');
       }
       
       analyser.current = audioContext.current.createAnalyser();
       analyser.current.fftSize = 256;
       analyser.current.smoothingTimeConstant = 0.3;
+      console.log('🎤 Analyser configurado');
       
       const audioTracks = stream.getAudioTracks();
       if (audioTracks.length > 0) {
         microphone.current = audioContext.current.createMediaStreamSource(stream);
         microphone.current.connect(analyser.current);
+        console.log('🎤 Microphone source conectado ao analyser');
         
         // Iniciar monitoramento de áudio
         startAudioMonitoring();
+        console.log('🎤 Monitoramento de áudio iniciado');
+      } else {
+        console.warn('⚠️ Nenhuma track de áudio encontrada no stream');
       }
     } catch (error) {
       console.error('Erro ao configurar análise de áudio:', error);
