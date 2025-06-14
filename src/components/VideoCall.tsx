@@ -1021,7 +1021,6 @@ const VideoCall: React.FC = () => {
   const [isSettingId, setIsSettingId] = useState(false);
   const [partnerEndedCall, setPartnerEndedCall] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isRinging, setIsRinging] = useState(false);
   const [callEndReason, setCallEndReason] = useState<'ended' | 'rejected' | 'busy' | 'disconnected' | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>(() => [...globalLogs]);
   const [showLogsPopup, setShowLogsPopup] = useState(false);
@@ -1229,7 +1228,6 @@ const VideoCall: React.FC = () => {
   // Iniciar toque
   const startRingtone = () => {
     console.log('🔔 Iniciando toque...');
-    setIsRinging(true);
     
     // Inicializar o áudio se ainda não foi
     initializeRingtone();
@@ -1249,7 +1247,6 @@ const VideoCall: React.FC = () => {
   // Parar toque
   const stopRingtone = () => {
     console.log('🔕 Parando toque...');
-    setIsRinging(false);
     
     if (ringtoneInterval.current) {
       clearInterval(ringtoneInterval.current);
@@ -1646,6 +1643,14 @@ const VideoCall: React.FC = () => {
     }
   }, [stream, isCallActive]);
 
+  // useEffect específico para reaplicar vídeo local quando sair do estado partnerEndedCall
+  useEffect(() => {
+    if (stream && isCallActive && localVideoOverlay.current && !localVideoOverlay.current.srcObject) {
+      console.log('🔄 Reaplicando stream ao vídeo overlay após mudança de estado...');
+      applyStreamToVideo(localVideoOverlay, stream, 'Reaplicando stream ao vídeo overlay');
+    }
+  }, [stream, isCallActive, partnerEndedCall]);
+
   // useEffect separado para adicionar stream ao peer connection quando disponível
   useEffect(() => {
     if (stream && peerConnection.current) {
@@ -1766,6 +1771,14 @@ const VideoCall: React.FC = () => {
         from: userId
       });
 
+      // Garantir que o vídeo local seja aplicado ao overlay após iniciar chamada
+      setTimeout(() => {
+        if (stream && localVideoOverlay.current) {
+          console.log('🔄 GARANTINDO aplicação do stream ao vídeo overlay após iniciar chamada...');
+          applyStreamToVideo(localVideoOverlay, stream, 'Garantindo stream no overlay após chamar');
+        }
+      }, 100);
+
     } catch (error) {
       console.error("❌ Error initiating call:", error);
       setIsCalling(false);
@@ -1805,6 +1818,14 @@ const VideoCall: React.FC = () => {
       
       setCallAccepted(true);
       setReceivingCall(false);
+      
+      // Garantir que o vídeo local seja aplicado ao overlay após aceitar
+      setTimeout(() => {
+        if (stream && localVideoOverlay.current) {
+          console.log('🔄 GARANTINDO aplicação do stream ao vídeo overlay após aceitar chamada...');
+          applyStreamToVideo(localVideoOverlay, stream, 'Garantindo stream no overlay após aceitar');
+        }
+      }, 100);
       
     } catch (error) {
       console.error('❌ Error creating/sending answer:', error);
