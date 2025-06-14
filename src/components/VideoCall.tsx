@@ -928,6 +928,12 @@ const VideoCall: React.FC = () => {
   const [showPartnersPopup, setShowPartnersPopup] = useState(false);
   const [shouldCall, setShouldCall] = useState(false);
 
+  // Estados derivados (computados) - simplifica lógica de renderização
+  const isCallActive = callAccepted || isCalling || receivingCall;
+  const isNormalState = !isCalling && !receivingCall && !callAccepted && !partnerEndedCall;
+  const currentPartner = caller || partnerId;
+  const canStartCall = !callAccepted && !isCalling && !receivingCall && !partnerEndedCall;
+
   // Refs
   const userVideo = useRef<HTMLVideoElement>(null);
   const partnerVideoFull = useRef<HTMLVideoElement>(null);
@@ -941,6 +947,29 @@ const VideoCall: React.FC = () => {
   const ringtoneAudio = useRef<HTMLAudioElement | null>(null);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
   const logsContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Função utilitária para aplicar stream a elementos de vídeo
+  const applyStreamToVideo = (videoRef: React.RefObject<HTMLVideoElement>, stream: MediaStream, description: string) => {
+    if (videoRef.current && stream) {
+      console.log(`🎥 ${description}`);
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(e => {
+        console.log(`Erro ao reproduzir ${description.toLowerCase()}:`, e);
+      });
+    }
+  };
+
+  // Função para resetar estados de chamada
+  const resetCallStates = () => {
+    setCallAccepted(false);
+    setIsCalling(false);
+    setReceivingCall(false);
+    setPartnerEndedCall(false);
+    setCallEndReason(null);
+    setCaller("");
+    setPartnerId("");
+    setRemoteStream(null);
+  };
 
   const initializeCamera = async () => {
     console.log('🎥 Iniciando câmera após definição do ID...');
@@ -1406,27 +1435,21 @@ const VideoCall: React.FC = () => {
     };
   }, []);
 
-  // useEffect separado para aplicar stream local ao elemento de vídeo
+  // useEffect consolidado para aplicar streams locais
   useEffect(() => {
-    if (stream && userVideo.current) {
-      console.log('🎥 Aplicando stream local ao elemento de vídeo');
-      userVideo.current.srcObject = stream;
-      userVideo.current.play().catch(e => {
-        console.log('Erro ao reproduzir vídeo local:', e);
-      });
+    if (stream) {
+      // Aplicar ao vídeo principal
+      applyStreamToVideo(userVideo, stream, 'Aplicando stream local ao elemento de vídeo');
       
       // Configurar análise de áudio para detecção de fala
       setupAudioAnalysis(stream);
+      
+      // Aplicar ao vídeo overlay quando há atividade de chamada
+      if (isCallActive) {
+        applyStreamToVideo(localVideoOverlay, stream, 'Aplicando stream ao vídeo overlay');
+      }
     }
-    
-    // Aplicar também ao vídeo overlay quando há atividade de chamada
-    if (stream && localVideoOverlay.current && (callAccepted || isCalling || receivingCall)) {
-      localVideoOverlay.current.srcObject = stream;
-      localVideoOverlay.current.play().catch(e => {
-        console.log('Erro ao reproduzir vídeo overlay:', e);
-      });
-    }
-  }, [stream, callAccepted, isCalling, receivingCall]);
+  }, [stream, isCallActive]);
 
   // useEffect separado para adicionar stream ao peer connection quando disponível
   useEffect(() => {
@@ -1451,9 +1474,7 @@ const VideoCall: React.FC = () => {
     }
   }, [stream]);
 
-  useEffect(() => {
-    console.log('userId state updated:', userId);
-  }, [userId]);
+
 
   // Cleanup do stream quando o componente é desmontado
   useEffect(() => {
@@ -1469,33 +1490,20 @@ const VideoCall: React.FC = () => {
     };
   }, [stream]);
 
-  // useEffect separado para garantir que o remote stream seja aplicado ao elemento de vídeo
+  // useEffect para aplicar remote stream
   useEffect(() => {
-    // Aplicar ao vídeo fullscreen quando há atividade de chamada
-    if (remoteStream && partnerVideoFull.current && (callAccepted || isCalling || receivingCall)) {
-      partnerVideoFull.current.srcObject = remoteStream;
-      partnerVideoFull.current.play().catch(e => console.log('Partner fullscreen video play error:', e));
+    if (remoteStream && isCallActive) {
+      applyStreamToVideo(partnerVideoFull, remoteStream, 'Aplicando remote stream ao vídeo fullscreen');
     }
-  }, [remoteStream, callAccepted, isCalling, receivingCall]);
+  }, [remoteStream, isCallActive]);
 
-  // useEffect para garantir que o vídeo local seja restaurado após chamadas
+  // useEffect para restaurar vídeo local após chamadas
   useEffect(() => {
-    // Verificar se voltamos ao estado normal (sem atividade de chamada)
-    const isNormalState = !isCalling && !receivingCall && !callAccepted && !partnerEndedCall;
-    
-    if (isNormalState && stream && userVideo.current) {
+    if (isNormalState && stream && userVideo.current?.srcObject !== stream) {
       console.log('🔄 Restaurando vídeo local no estado normal...');
-      
-      // Verificar se o vídeo precisa ser re-aplicado
-      if (userVideo.current.srcObject !== stream) {
-        console.log('🎥 Re-aplicando stream ao vídeo local...');
-        userVideo.current.srcObject = stream;
-        userVideo.current.play().catch(e => {
-          console.log('Erro ao reproduzir vídeo local restaurado:', e);
-        });
-      }
+      applyStreamToVideo(userVideo, stream, 'Re-aplicando stream ao vídeo local');
     }
-  }, [stream, callAccepted, isCalling, receivingCall, partnerEndedCall]);
+  }, [stream, isNormalState]);
 
   // Focar automaticamente no campo de ID quando a tela for carregada
   useEffect(() => {
@@ -1638,61 +1646,26 @@ const VideoCall: React.FC = () => {
 
   const leaveCall = () => {
     console.log('🔴 ENCERRANDO CHAMADA');
-    console.log('Estados antes do reset:', {
-      callAccepted,
-      isCalling,
-      receivingCall,
-      partnerEndedCall,
-      callEndReason,
-      hasStream: !!stream,
-      hasRemoteStream: !!remoteStream
-    });
     
     // Parar toque se estiver tocando
     stopRingtone();
     
-    const partnerToNotify = caller || partnerId;
-    if (partnerToNotify && !partnerEndedCall) {
+    // Notificar parceiro se necessário
+    if (currentPartner && !partnerEndedCall) {
       socket.emit("endCall", {
-        to: partnerToNotify,
+        to: currentPartner,
         from: userId
       });
     }
     
-    setCallAccepted(false);
-    setIsCalling(false);
-    setReceivingCall(false);
-    setPartnerEndedCall(false);
-    setCallEndReason(null);
-    setCaller("");
-    setPartnerId("");
-    setRemoteStream(null);
+    // Resetar todos os estados de chamada
+    resetCallStates();
     
+    // Fechar peer connection
     if (peerConnection.current) {
       peerConnection.current.close();
       peerConnection.current = undefined;
     }
-    
-    console.log('Estados após o reset - aguardando re-render...');
-    
-    // Garantir que o vídeo local seja re-aplicado após reset
-    setTimeout(() => {
-      console.log('Estados finais após timeout:', {
-        callAccepted,
-        isCalling,
-        receivingCall,
-        partnerEndedCall,
-        callEndReason,
-        hasStream: !!stream,
-        hasUserVideo: !!userVideo.current
-      });
-      
-      if (stream && userVideo.current && !userVideo.current.srcObject) {
-        console.log('🔄 Re-aplicando stream local ao vídeo...');
-        userVideo.current.srcObject = stream;
-        userVideo.current.play().catch(e => console.log('Erro ao reproduzir vídeo local após reset:', e));
-      }
-    }, 100);
     
     console.log('✅ Chamada encerrada - Usuário voltou ao estado inicial');
   };
@@ -1968,7 +1941,7 @@ const VideoCall: React.FC = () => {
           </StatusMessage>
         )}
 
-        {!callAccepted && !isCalling && !receivingCall && !partnerEndedCall && (
+        {canStartCall && (
           <CallButtonContainer>
             <CallButton 
               onClick={openPartnersPopup} 
@@ -1988,7 +1961,7 @@ const VideoCall: React.FC = () => {
         )}
 
         {/* Layout durante chamada ativa - vídeo overlay */}
-        {(callAccepted || isCalling || receivingCall) && !partnerEndedCall && (
+        {isCallActive && !partnerEndedCall && (
           <CallActiveContainer>
             {/* Vídeo principal - sempre o vídeo do parceiro */}
             {remoteStream ? (
@@ -2000,9 +1973,9 @@ const VideoCall: React.FC = () => {
             )}
             
             {/* ID do parceiro sobreposto */}
-            {(caller || partnerId) && (
+            {currentPartner && (
               <PartnerIdOverlay>
-                👤 {caller || partnerId}
+                👤 {currentPartner}
               </PartnerIdOverlay>
             )}
             
@@ -2033,41 +2006,28 @@ const VideoCall: React.FC = () => {
         )}
 
         {/* Layout normal - apenas quando não há atividade de chamada */}
-        {!isCalling && !receivingCall && !callAccepted && !partnerEndedCall && (
-          <>
-            {(() => {
-              const videoCount = [
-                stream,
-                false // Nunca mostrar vídeo remoto no layout normal
-              ].filter(Boolean).length;
-              
-              const ContainerComponent = videoCount <= 1 ? VideoContainerSingle : VideoContainer;
-              
-              return (
-                <ContainerComponent>
-                  {stream && (
-                    <VideoWrapper>
-                      <VideoInitialState playsInline muted ref={userVideo} autoPlay />
-                      <MicrophoneOverlay isActive={isSpeaking}>
-                        🎙️
-                      </MicrophoneOverlay>
-                    </VideoWrapper>
-                  )}
-                  {!stream && !cameraError && (
-                    <WaitingVideoPlaceholder>
-                      📹 Aguardando câmera...
-                    </WaitingVideoPlaceholder>
-                  )}
-                  {cameraError && (
-                    <CameraErrorPlaceholder>
-                      📱 Câmera não disponível<br/>
-                      (HTTPS necessário no mobile)
-                    </CameraErrorPlaceholder>
-                  )}
-                </ContainerComponent>
-              );
-            })()}
-          </>
+        {isNormalState && (
+          <VideoContainerSingle>
+            {stream && (
+              <VideoWrapper>
+                <VideoInitialState playsInline muted ref={userVideo} autoPlay />
+                <MicrophoneOverlay isActive={isSpeaking}>
+                  🎙️
+                </MicrophoneOverlay>
+              </VideoWrapper>
+            )}
+            {!stream && !cameraError && (
+              <WaitingVideoPlaceholder>
+                📹 Aguardando câmera...
+              </WaitingVideoPlaceholder>
+            )}
+            {cameraError && (
+              <CameraErrorPlaceholder>
+                📱 Câmera não disponível<br/>
+                (HTTPS necessário no mobile)
+              </CameraErrorPlaceholder>
+            )}
+          </VideoContainerSingle>
         )}
 
         <div>
@@ -2084,7 +2044,7 @@ const VideoCall: React.FC = () => {
           {partnerEndedCall && (
             <CallEndedContainer>
               <CallEndedMessage>
-                📞 {caller || partnerId} {callEndReason === 'rejected' ? 'recusou a chamada' : 'encerrou a chamada'}
+                📞 {currentPartner} {callEndReason === 'rejected' ? 'recusou a chamada' : 'encerrou a chamada'}
               </CallEndedMessage>
               <Button onClick={leaveCall}>
                 Finalizar e Voltar
