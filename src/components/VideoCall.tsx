@@ -2059,7 +2059,7 @@ const VideoCall: React.FC = () => {
       // Threshold para considerar que está falando (ajuste conforme necessário)
       const speechThreshold = 10;
 
-      console.log('🎤 Nível de áudio:', average);
+      // console.log('🎤 Nível de áudio:', average);
       setIsSpeaking(average > speechThreshold);
       
       requestAnimationFrame(checkAudioLevel);
