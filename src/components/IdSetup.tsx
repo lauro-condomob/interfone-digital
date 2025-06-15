@@ -198,25 +198,90 @@ const StatusMessage = styled.div`
   }
 `;
 
+const ClearButton = styled.button`
+  padding: 10px 20px;
+  margin: 15px auto 0 auto;
+  border: none;
+  border-radius: 8px;
+  background-color: #6c757d;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  min-height: 40px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  &:hover {
+    background-color: #5a6268;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 15px;
+    font-size: 13px;
+    min-height: 38px;
+    /* Manter texto e ícone visíveis em mobile */
+  }
+`;
+
 // Interface
 interface IdSetupProps {
   onIdSet: (id: string) => void;
+  idError?: string | null;
+  isSettingId?: boolean;
 }
 
-const IdSetup: React.FC<IdSetupProps> = ({ onIdSet }) => {
+const IdSetup: React.FC<IdSetupProps> = ({ 
+  onIdSet, 
+  idError: externalIdError, 
+  isSettingId: externalIsSettingId 
+}) => {
   const [tempUserId, setTempUserId] = useState("");
   const [idError, setIdError] = useState<string | null>(null);
   const [isSettingId, setIsSettingId] = useState(false);
+  const [hasSavedId, setHasSavedId] = useState(false);
   const idInputRef = useRef<HTMLInputElement>(null);
+  
+  // Usar props externas se fornecidas
+  const currentIdError = externalIdError !== undefined ? externalIdError : idError;
+  const currentIsSettingId = externalIsSettingId !== undefined ? externalIsSettingId : isSettingId;
+
+  // Carregar ID do localStorage quando o componente for montado
+  useEffect(() => {
+    const savedUserId = localStorage.getItem('interfone_user_id');
+    if (savedUserId) {
+      console.log('📋 ID carregado do localStorage:', savedUserId);
+      setTempUserId(savedUserId);
+      setHasSavedId(true);
+    }
+  }, []);
 
   // Focar automaticamente no campo de ID quando a tela for carregada
   useEffect(() => {
     const timer = setTimeout(() => {
       idInputRef.current?.focus();
+      // Se há um ID salvo, posicionar cursor no final
+      if (tempUserId && idInputRef.current) {
+        idInputRef.current.setSelectionRange(tempUserId.length, tempUserId.length);
+      }
     }, 100);
     
     return () => clearTimeout(timer);
-  }, []);
+  }, [tempUserId]);
 
   const setCustomUserId = () => {
     if (!tempUserId.trim()) {
@@ -234,20 +299,36 @@ const IdSetup: React.FC<IdSetupProps> = ({ onIdSet }) => {
       return;
     }
 
-    setIsSettingId(true);
-    setIdError(null);
+    // Limpar erro local se usando props externas
+    if (externalIdError === undefined) {
+      setIdError(null);
+      setIsSettingId(true);
+    }
     
-    // Simular processo de configuração (na implementação real, enviaria para o socket)
-    setTimeout(() => {
-      onIdSet(tempUserId);
-      setIsSettingId(false);
-    }, 1000);
+    // Salvar ID no localStorage
+    localStorage.setItem('interfone_user_id', tempUserId);
+    console.log('💾 ID salvo no localStorage:', tempUserId);
+    
+    // Chamar callback para o componente pai
+    onIdSet(tempUserId);
   };
 
   const handleIdInputKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       setCustomUserId();
     }
+  };
+
+  const clearSavedId = () => {
+    localStorage.removeItem('interfone_user_id');
+    setTempUserId("");
+    setHasSavedId(false);
+    console.log('🗑️ ID salvo removido do localStorage');
+    
+    // Focar no campo de input após limpar
+    setTimeout(() => {
+      idInputRef.current?.focus();
+    }, 100);
   };
 
   return (
@@ -264,27 +345,34 @@ const IdSetup: React.FC<IdSetupProps> = ({ onIdSet }) => {
             value={tempUserId}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempUserId(e.target.value)}
             onKeyPress={handleIdInputKeyPress}
-            disabled={isSettingId}
+            disabled={currentIsSettingId}
             ref={idInputRef}
           />
           <BaseButton 
             onClick={setCustomUserId} 
-            disabled={!tempUserId.trim() || isSettingId}
+            disabled={!tempUserId.trim() || currentIsSettingId}
           >
             <span className="button-icon">✓</span>
             <span className="button-text">
-              {isSettingId ? "Configurando..." : "Definir ID"}
+                              {currentIsSettingId ? "Configurando..." : "Definir ID"}
             </span>
           </BaseButton>
         </IdInputGroup>
-        {idError && (
-          <ErrorMessage>
-            ⚠️ {idError}
-          </ErrorMessage>
-        )}
+                  {currentIdError && (
+            <ErrorMessage>
+              ⚠️ {currentIdError}
+            </ErrorMessage>
+          )}
         <StatusMessage>
           💡 Regras: mínimo 3 caracteres, apenas letras, números, _ e -
         </StatusMessage>
+        
+        {hasSavedId && (
+          <ClearButton onClick={clearSavedId}>
+            <span>🗑️</span>
+            <span>Limpar ID Salvo</span>
+          </ClearButton>
+        )}
       </IdSetupCard>
     </IdSetupContainer>
   );

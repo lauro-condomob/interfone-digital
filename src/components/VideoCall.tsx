@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import io from 'socket.io-client';
+import IdSetup from './IdSetup';
+import NotificationSystem from './NotificationSystem';
+import PartnersPopup from './PartnersPopup';
+import type { CallData, LogEntry, Notification, CallEndReason } from '../types';
 
 // ============================================================================
 // STYLED COMPONENTS
@@ -968,15 +972,8 @@ const CameraToggleButton = styled.button`
 `;
 
 // ============================================================================
-// INTERFACES & SOCKET SETUP
+// SOCKET SETUP
 // ============================================================================
-
-interface CallData {
-  offer?: RTCSessionDescriptionInit;
-  answer?: RTCSessionDescriptionInit;
-  from: string;
-  candidate?: RTCIceCandidateInit;
-}
 
 const socket = io(`https://${window.location.hostname}`
     + (window.location.hostname.includes('localhost')? ':8000' : '')
@@ -997,7 +994,6 @@ const socket = io(`https://${window.location.hostname}`
 // MAIN COMPONENT
 // ============================================================================
 
-type LogEntry = { type: 'log' | 'warn' | 'error', message: string };
 const globalLogs: LogEntry[] = [];
 
 // Variável global para armazenar os servidores TURN
@@ -1968,35 +1964,12 @@ const VideoCall: React.FC = () => {
     console.log('✅ Chamada encerrada - Usuário voltou ao estado inicial');
   };
 
-  const setCustomUserId = () => {
-    if (!tempUserId.trim()) {
-      setIdError("Por favor, digite um ID válido");
-      return;
-    }
-
-    if (tempUserId.length < 3) {
-      setIdError("ID deve ter pelo menos 3 caracteres");
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9_-]+$/.test(tempUserId)) {
-      setIdError("ID pode conter apenas letras, números, _ e -");
-      return;
-    }
-
+  const handleIdSet = (customId: string) => {
+    console.log("ID definido pelo componente IdSetup:", customId);
     setIsSettingId(true);
     setIdError(null);
-    console.log("Tentando definir ID customizado:", tempUserId);
-    socket.emit("setUserId", { customId: tempUserId });
+    socket.emit("setUserId", { customId });
   };
-
-  const handleIdInputKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      setCustomUserId();
-    }
-  };
-
-
 
   const openPartnersPopup = () => {
     console.log('🔍 Abrindo popup de parceiros disponíveis');
@@ -2265,42 +2238,11 @@ const VideoCall: React.FC = () => {
     if (!isIdSet) {
       return (
         <>
-          <IdSetupContainer>
-            <IdSetupCard>
-              <IdSetupTitle>📱 Interfone Digital</IdSetupTitle>
-              <IdSetupDescription>
-                Escolha um ID único para suas videochamadas.<br/>
-                Este será o ID que outros usuários usarão para te chamar.
-              </IdSetupDescription>
-              <IdInputGroup>
-                <IdSetupInput
-                  placeholder="Digite seu ID (ex: joao123, maria_silva)"
-                  value={tempUserId}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempUserId(e.target.value)}
-                  onKeyPress={handleIdInputKeyPress}
-                  disabled={isSettingId}
-                  ref={idInputRef}
-                />
-                <IdSetupButton 
-                  onClick={setCustomUserId} 
-                  disabled={!tempUserId.trim() || isSettingId}
-                >
-                  <span className="button-icon">✓</span>
-                  <span className="button-text">
-                    {isSettingId ? "Configurando..." : "Definir ID"}
-                  </span>
-                </IdSetupButton>
-              </IdInputGroup>
-              {idError && (
-                <ErrorMessage>
-                  ⚠️ {idError}
-                </ErrorMessage>
-              )}
-              <StatusMessage>
-                💡 Regras: mínimo 3 caracteres, apenas letras, números, _ e -
-              </StatusMessage>
-            </IdSetupCard>
-          </IdSetupContainer>
+          <IdSetup 
+            onIdSet={handleIdSet} 
+            idError={idError}
+            isSettingId={isSettingId}
+          />
           {logsButtonAndPopup}
         </>
       );
