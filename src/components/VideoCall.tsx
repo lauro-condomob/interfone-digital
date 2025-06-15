@@ -449,7 +449,7 @@ const MicrophoneOverlay = styled.div<{ isActive: boolean }>`
   right: 15px;
   width: 40px;
   height: 40px;
-  background: ${props => props.isActive ? 'rgba(34, 197, 94, 0.9)' : 'rgba(64, 64, 64, 0.5)'};
+  background: ${props => props.isActive ? 'rgba(34, 197, 94, 0.6)' : 'rgba(0, 0, 0, 0.4)'};
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -457,7 +457,6 @@ const MicrophoneOverlay = styled.div<{ isActive: boolean }>`
   font-size: 18px;
   color: white;
   backdrop-filter: blur(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   z-index: 20;
   transition: all 0.2s ease;
   
@@ -477,7 +476,7 @@ const MicrophoneOverlaySmall = styled.div<{ isActive: boolean }>`
   right: 25px;
   width: 24px;
   height: 24px;
-  background: ${props => props.isActive ? 'rgba(34, 197, 94, 0.9)' : 'rgba(64, 64, 64, 0.5)'};
+  background: ${props => props.isActive ? 'rgba(34, 197, 94, 0.6)' : 'rgba(0, 0, 0, 0.4)'};
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -485,7 +484,6 @@ const MicrophoneOverlaySmall = styled.div<{ isActive: boolean }>`
   font-size: 12px;
   color: white;
   backdrop-filter: blur(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   z-index: 20;
   transition: all 0.2s ease;
   
@@ -940,9 +938,9 @@ const NotificationClose = styled.button`
 // Botão para alternar câmera (mobile only)
 const CameraToggleButton = styled.button`
   position: absolute;
-  bottom: 20px;
+  top: 20px;
   right: 20px;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
   border: none;
   border-radius: 50%;
   width: 50px;
@@ -956,17 +954,13 @@ const CameraToggleButton = styled.button`
   transition: all 0.3s ease;
   z-index: 1000;
   
-  &:hover {
-    background: rgba(0, 0, 0, 0.7);
-  }
-  
-  &:active {
-    transform: scale(0.95);
-  }
+  // &:active {
+  //   transform: scale(0.95);
+  // }
   
   @media (max-width: 768px) {
-    bottom: 15px;
-    left: 15px;
+    top: 15px;
+    right: 15px;
     width: 35px;
     height: 35px;
     font-size: 14px;
@@ -985,7 +979,7 @@ interface CallData {
 }
 
 const socket = io(`https://${window.location.hostname}`
-                  // + ':8000'
+    + (window.location.hostname.includes('localhost')? ':8000' : '')
   , {
   transports: ['websocket', 'polling'],
   upgrade: true,
@@ -1014,7 +1008,7 @@ const loadTurnServers = async () => {
   try {
     const response = await fetch(
       `https://${window.location.hostname}`
-      // + ':8000'
+      + (window.location.hostname.includes('localhost')? ':8000' : '')
       +'/api/turn',
       {
         headers: {"Accept": "application/json"},
