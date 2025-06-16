@@ -1213,9 +1213,6 @@ const VideoCall: React.FC = () => {
     }
 
     const pc = new RTCPeerConnection({ iceServers });
-
-    pc.addTransceiver('audio', { direction: 'sendrecv' });
-    pc.addTransceiver('video', { direction: 'sendrecv' });
     
     console.log('✅ Peer connection created successfully');
 
