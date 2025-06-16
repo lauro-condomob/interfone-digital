@@ -1744,6 +1744,10 @@ const VideoCall: React.FC = () => {
           console.log(`⚠️ Track ${track.kind} já existe, pulando...`);
         }
       });
+
+      peerConnection.current?.getTransceivers().forEach((t: any, i: number) => {
+        console.log(`Transceiver ${i}:`, t.kind, t.direction, t.currentDirection);
+      });
       
       console.log('Total senders após adição:', peerConnection.current?.getSenders().length);
     } else {
@@ -1837,6 +1841,10 @@ const VideoCall: React.FC = () => {
         pc.addTrack(track, stream);
       });
 
+      pc.getTransceivers().forEach((t: any, i: number) => {
+        console.log(`Transceiver ${i}:`, t.kind, t.direction, t.currentDirection);
+      });
+
       console.log('📋 Creating offer');
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
@@ -1885,6 +1893,10 @@ const VideoCall: React.FC = () => {
       stream.getTracks().forEach(track => {
         console.log('➕ Adding track:', track.kind, track.label);
         peerConnection.current?.addTrack(track, stream);
+      });
+
+      peerConnection.current?.getTransceivers().forEach((t: any, i: number) => {
+        console.log(`Transceiver ${i}:`, t.kind, t.direction, t.currentDirection);
       });
 
       console.log('📋 Creating answer');
