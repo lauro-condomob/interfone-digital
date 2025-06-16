@@ -1213,6 +1213,9 @@ const VideoCall: React.FC = () => {
     }
 
     const pc = new RTCPeerConnection({ iceServers });
+
+    pc.addTransceiver('audio', { direction: 'sendrecv' });
+    pc.addTransceiver('video', { direction: 'sendrecv' });
     
     console.log('✅ Peer connection created successfully');
 
@@ -1838,7 +1841,10 @@ const VideoCall: React.FC = () => {
       });
 
       console.log('📋 Creating offer');
-      const offer = await pc.createOffer();
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
       console.log('📋 Setting local description (offer)');
       await pc.setLocalDescription(offer);
       
