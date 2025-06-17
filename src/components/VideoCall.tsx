@@ -1011,8 +1011,17 @@ const loadTurnServers = async () => {
       }
     );
     if (response.ok) {
-      const turnServers = await response.json();
+      let turnServers = await response.json();
       console.log('🔍 TURN IceServers carregados:', turnServers);
+
+      let tcp443TurnServers = turnServers.filter((s: any)=>s.url?.includes('tcp') && s.url?.includes('443'))
+      if(tcp443TurnServers.length > 0) {
+        console.log('🔍 TURN IceServers filtrados:', tcp443TurnServers);
+        turnServers = tcp443TurnServers;
+      } else {
+        console.log('🔍 Nenhum TURN IceServer encontrado com tcp e 443');
+      }
+
       globalTurnServers = turnServers;
     }
   } catch (error) {
@@ -1209,7 +1218,7 @@ const VideoCall: React.FC = () => {
     // Adicionar servidores TURN da variável global
     if (globalTurnServers.length > 0) {
       console.log('🔍 Usando TURN IceServers da variável global:', globalTurnServers);
-      iceServers = [...iceServers, ...globalTurnServers];
+      iceServers = globalTurnServers;
     }
 
     const pc = new RTCPeerConnection({ iceServers: iceServers, iceTransportPolicy: "relay" });
