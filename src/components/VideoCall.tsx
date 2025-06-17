@@ -1212,7 +1212,7 @@ const VideoCall: React.FC = () => {
       iceServers = [...iceServers, ...globalTurnServers];
     }
 
-    const pc = new RTCPeerConnection({ iceServers });
+    const pc = new RTCPeerConnection({ iceServers: iceServers, iceTransportPolicy: "relay" });
     
     console.log('✅ Peer connection created successfully');
 
