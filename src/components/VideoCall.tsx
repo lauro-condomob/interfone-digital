@@ -898,6 +898,8 @@ const VideoCall: React.FC = () => {
       console.log('ICE connection state:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         console.log('ICE connection established successfully');
+      }else{
+        console.log('pc:', pc);
       }
     };
 
