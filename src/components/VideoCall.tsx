@@ -140,48 +140,10 @@ const BaseButton = styled.button`
   }
 `;
 
-const ResponsiveButton = styled(BaseButton)`
-  background-color: #007bff;
-
-  &:hover:not(:disabled) {
-    background-color: #0056b3;
-  }
-  
-  @media (max-width: 768px) {
-    padding: 12px;
-    font-size: 14px;
-    min-width: 60px;
-    width: 60px;
-    min-height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .button-text {
-    display: inline;
-  }
-  
-  .button-icon {
-    display: none;
-  }
-  
-  @media (max-width: 768px) {
-    .button-text {
-      display: none;
-    }
-    
-    .button-icon {
-      display: inline;
-      font-size: 14px;
-    }
-  }
-`;
-
 const CallButton = styled(BaseButton)`
   background-color: #28a745;
 `;
-  
+
 const Button = styled(BaseButton)`
   background-color: #007bff;
   margin: 8px;
