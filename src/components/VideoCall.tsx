@@ -4,7 +4,7 @@ import io from 'socket.io-client';
 import IdSetup from './IdSetup';
 import NotificationSystem from './NotificationSystem';
 import PartnersPopup from './PartnersPopup';
-import type { CallData, LogEntry, Notification, CallEndReason } from '../types';
+import type { CallData, LogEntry, Notification } from '../types';
 
 // ============================================================================
 // STYLED COMPONENTS
@@ -107,37 +107,6 @@ const LocalVideoOverlay = styled.video`
   
 `;
 
-// Input Components
-
-const BaseInput = styled.input`
-  padding: 15px;
-  margin: 0;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  font-size: 16px;
-  width: 100%;
-  max-width: 300px;
-  min-width: 200px;
-  box-sizing: border-box;
-  transition: border-color 0.2s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-  }
-  
-  @media (max-width: 768px) {
-    padding: 12px;
-    font-size: 14px;
-    flex: 1;
-    max-width: none;
-    min-width: 150px;
-  }
-`;
-
-const IdSetupInput = styled(BaseInput)``;
-
 // Button Components
 const BaseButton = styled.button`
   padding: 15px 25px;
@@ -212,8 +181,7 @@ const ResponsiveButton = styled(BaseButton)`
 const CallButton = styled(BaseButton)`
   background-color: #28a745;
 `;
-const IdSetupButton = styled(ResponsiveButton)``;
-
+  
 const Button = styled(BaseButton)`
   background-color: #007bff;
   margin: 8px;
@@ -501,197 +469,6 @@ const MicrophoneOverlaySmall = styled.div<{ isActive: boolean }>`
   
 `;
 
-// ID Setup Components
-const IdSetupContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  width: 100%;
-  max-width: 100vw;
-  padding: 20px;
-  background-color: #f8f9fa;
-  box-sizing: border-box;
-  
-  @media (max-width: 768px) {
-    padding: 15px;
-  }
-`;
-
-const IdSetupCard = styled.div`
-  background: white;
-  border-radius: 16px;
-  padding: 40px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  max-width: 500px;
-  width: 100%;
-  text-align: center;
-  
-  @media (max-width: 768px) {
-    padding: 30px 20px;
-    border-radius: 12px;
-    max-width: 95%;
-  }
-`;
-
-const IdSetupTitle = styled.h1`
-  color: #333;
-  margin-bottom: 15px;
-  font-size: 32px;
-  font-weight: 600;
-  
-  @media (max-width: 768px) {
-    font-size: 28px;
-    margin-bottom: 20px;
-  }
-`;
-
-const IdSetupDescription = styled.p`
-  color: #666;
-  margin-bottom: 35px;
-  font-size: 16px;
-  line-height: 1.6;
-  
-  @media (max-width: 768px) {
-    font-size: 16px;
-    margin-bottom: 30px;
-    line-height: 1.5;
-  }
-`;
-
-const IdInputGroup = styled.div`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 15px;
-  margin-bottom: 25px;
-  width: 100%;
-  
-  @media (max-width: 768px) {
-    gap: 10px;
-    margin-bottom: 25px;
-  }
-`;
-
-// Popup Components
-const PopupOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-  box-sizing: border-box;
-`;
-
-const PopupContainer = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 30px;
-  max-width: 400px;
-  width: 100%;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  
-  @media (max-width: 768px) {
-    padding: 20px;
-    max-width: 90%;
-    max-height: 70vh;
-  }
-`;
-
-const PopupTitle = styled.h2`
-  color: #333;
-  margin-bottom: 20px;
-  font-size: 24px;
-  font-weight: 600;
-  text-align: center;
-  
-  @media (max-width: 768px) {
-    font-size: 20px;
-    margin-bottom: 15px;
-  }
-`;
-
-const PartnersList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
-  max-height: 300px;
-  overflow-y: auto;
-`;
-
-const PartnerItem = styled.button`
-  display: flex;
-  align-items: center;
-  padding: 15px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 16px;
-  color: #333;
-  
-  &:hover {
-    border-color: #007bff;
-    background-color: #f8f9ff;
-    transform: translateY(-1px);
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
-  
-  @media (max-width: 768px) {
-    padding: 10px;
-    font-size: 18px;
-  }
-`;
-
-const PartnerIcon = styled.span`
-  margin-right: 12px;
-  font-size: 20px;
-`;
-
-const EmptyMessage = styled.div`
-  text-align: center;
-  color: #666;
-  font-size: 16px;
-  padding: 30px 20px;
-  font-style: italic;
-`;
-
-const PopupCloseButton = styled.button`
-  width: 100%;
-  padding: 12px;
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  
-  &:hover {
-    background-color: #5a6268;
-  }
-  
-  @media (max-width: 768px) {
-    padding: 12px;
-    font-size: 14px;
-  }
-`;
-
 // Novos styled components para substituir estilos inline
 const LogsButton = styled(Button)`
   position: fixed;
@@ -755,11 +532,6 @@ const LogIcon = styled.span`
 
 const LogsCloseButton = styled(Button)`
   margin-top: 16px;
-`;
-
-const ReloadButton = styled.button`
-  margin-top: 10px;
-  padding: 5px 10px;
 `;
 
 const CallButtonContainer = styled.div`
@@ -837,107 +609,7 @@ const ErrorReloadButton = styled.button`
   margin-top: 10px;
 `;
 
-// Componentes de notificação
-const NotificationsContainer = styled.div`
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 10002;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 400px;
-  
-  @media (max-width: 768px) {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    max-width: none;
-  }
-`;
 
-const NotificationItem = styled.div<{ type: 'success' | 'info' | 'warning' | 'error' }>`
-  padding: 15px 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 14px;
-  animation: slideIn 0.3s ease-out;
-  cursor: pointer;
-  
-  background: ${props => {
-    switch (props.type) {
-      case 'success': return '#d4edda';
-      case 'info': return '#d1ecf1';
-      case 'warning': return '#fff3cd';
-      case 'error': return '#f8d7da';
-      default: return '#d1ecf1';
-    }
-  }};
-  
-  color: ${props => {
-    switch (props.type) {
-      case 'success': return '#155724';
-      case 'info': return '#0c5460';
-      case 'warning': return '#856404';
-      case 'error': return '#721c24';
-      default: return '#0c5460';
-    }
-  }};
-  
-  border-left: 4px solid ${props => {
-    switch (props.type) {
-      case 'success': return '#28a745';
-      case 'info': return '#17a2b8';
-      case 'warning': return '#ffc107';
-      case 'error': return '#dc3545';
-      default: return '#17a2b8';
-    }
-  }};
-  
-  &:hover {
-    opacity: 0.8;
-  }
-  
-  @keyframes slideIn {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-`;
-
-const NotificationContent = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-`;
-
-const NotificationIcon = styled.span`
-  font-size: 16px;
-`;
-
-const NotificationClose = styled.button`
-  background: none;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  font-size: 18px;
-  padding: 0;
-  margin-left: 10px;
-  opacity: 0.7;
-  
-  &:hover {
-    opacity: 1;
-  }
-`;
 
 // Botão para alternar câmera (mobile only)
 const CameraToggleButton = styled.button`
@@ -1071,7 +743,6 @@ const VideoCall: React.FC = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isIdSet, setIsIdSet] = useState(false);
-  const [tempUserId, setTempUserId] = useState("");
   const [idError, setIdError] = useState<string | null>(null);
   const [isSettingId, setIsSettingId] = useState(false);
   const [partnerEndedCall, setPartnerEndedCall] = useState(false);
@@ -1083,12 +754,7 @@ const VideoCall: React.FC = () => {
   const [availableUsers, setAvailableUsers] = useState<string[]>([]);
   const [showPartnersPopup, setShowPartnersPopup] = useState(false);
   const [shouldCall, setShouldCall] = useState(false);
-  const [notifications, setNotifications] = useState<Array<{
-    id: number;
-    message: string;
-    type: 'success' | 'info' | 'warning' | 'error';
-    timestamp: number;
-  }>>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isUsingFrontCamera, setIsUsingFrontCamera] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -1221,7 +887,10 @@ const VideoCall: React.FC = () => {
       iceServers = globalTurnServers;
     }
 
-    const pc = new RTCPeerConnection({ iceServers: iceServers, iceTransportPolicy: "relay" });
+    const pc = new RTCPeerConnection({ 
+      iceServers: iceServers, 
+      // iceTransportPolicy: "relay" // Não funciona em localhost
+    });
     
     console.log('✅ Peer connection created successfully');
 
@@ -2435,64 +2104,18 @@ const VideoCall: React.FC = () => {
         {logsButtonAndPopup}
 
         {/* Popup de seleção de parceiros */}
-        {showPartnersPopup && (
-          <PopupOverlay onClick={closePartnersPopup}>
-            <PopupContainer onClick={(e) => e.stopPropagation()}>
-              <PopupTitle>👥 Parceiros Disponíveis</PopupTitle>
-              
-              {availableUsers.length > 0 ? (
-                <PartnersList>
-                  {availableUsers.map((user) => (
-                    <PartnerItem
-                      key={user}
-                      onClick={() => selectPartner(user)}
-                    >
-                      <PartnerIcon>👤</PartnerIcon>
-                      {user}
-                    </PartnerItem>
-                  ))}
-                </PartnersList>
-              ) : (
-                <EmptyMessage>
-                  Nenhum parceiro disponível no momento.<br/>
-                  Aguarde outros usuários se conectarem.
-                </EmptyMessage>
-              )}
-              
-              <PopupCloseButton onClick={closePartnersPopup}>
-                Cancelar
-              </PopupCloseButton>
-            </PopupContainer>
-          </PopupOverlay>
-        )}
+        <PartnersPopup 
+          isOpen={showPartnersPopup}
+          availableUsers={availableUsers}
+          onSelectPartner={selectPartner}
+          onClose={closePartnersPopup}
+        />
 
         {/* Sistema de Notificações */}
-        {notifications.length > 0 && (
-          <NotificationsContainer>
-            {notifications.map((notification) => (
-              <NotificationItem
-                key={notification.id}
-                type={notification.type}
-                onClick={() => removeNotification(notification.id)}
-              >
-                <NotificationContent>
-                  <NotificationIcon>
-                    {notification.type === 'success' ? '✅' : 
-                     notification.type === 'info' ? 'ℹ️' : 
-                     notification.type === 'warning' ? '⚠️' : '❌'}
-                  </NotificationIcon>
-                  {notification.message}
-                </NotificationContent>
-                <NotificationClose onClick={(e) => {
-                  e.stopPropagation();
-                  removeNotification(notification.id);
-                }}>
-                  ×
-                </NotificationClose>
-              </NotificationItem>
-            ))}
-          </NotificationsContainer>
-        )}
+        <NotificationSystem 
+          notifications={notifications}
+          onRemoveNotification={removeNotification}
+        />
       </Container>
     );
   } catch (error) {
