@@ -648,13 +648,13 @@ const loadTurnServers = async () => {
       let turnServers = await response.json();
       console.log('🔍 TURN IceServers carregados:', turnServers);
 
-      let tcp443TurnServers = turnServers.filter((s: any)=>s.url?.includes('tcp') && s.url?.includes('443'))
-      if(tcp443TurnServers.length > 0) {
-        console.log('🔍 TURN IceServers filtrados:', tcp443TurnServers);
-        turnServers = tcp443TurnServers;
-      } else {
-        console.log('🔍 Nenhum TURN IceServer encontrado com tcp e 443');
-      }
+      // let tcp443TurnServers = turnServers.filter((s: any)=>s.url?.includes('tcp') && s.url?.includes('443'))
+      // if(tcp443TurnServers.length > 0) {
+      //   console.log('🔍 TURN IceServers filtrados:', tcp443TurnServers);
+      //   turnServers = tcp443TurnServers;
+      // } else {
+      //   console.log('🔍 Nenhum TURN IceServer encontrado com tcp e 443');
+      // }
 
       globalTurnServers = turnServers;
     }
@@ -898,13 +898,14 @@ const VideoCall: React.FC = () => {
       console.log('ICE connection state:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         console.log('ICE connection established successfully');
-      }else{
-        console.log('pc:', pc);
       }
     };
 
     pc.onconnectionstatechange = () => {
       console.log('Connection state:', pc.connectionState);
+      if(pc.connectionState === 'failed'){
+        console.log('pc:', pc);
+      }
     };
 
     return pc;
