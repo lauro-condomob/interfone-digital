@@ -731,6 +731,13 @@ const VideoCall: React.FC = () => {
   const partnerVideoFull = useRef<HTMLVideoElement>(null);
   const localVideoOverlay = useRef<HTMLVideoElement>(null);
   const peerConnection = useRef<RTCPeerConnection>();
+  // ID do parceiro da chamada atual. Precisa ser ref (e não state) porque o
+  // onicecandidate é criado dentro de closures de handlers de socket que
+  // enxergam valores antigos do state (o callee enviava candidatos com to vazio).
+  const remotePeerIdRef = useRef<string>("");
+  // Candidatos ICE recebidos antes do setRemoteDescription (ou antes do peer
+  // connection existir) ficam aqui até poderem ser adicionados.
+  const pendingCandidates = useRef<{ from: string; candidate: RTCIceCandidateInit }[]>([]);
   const idInputRef = useRef<HTMLInputElement>(null);
   const audioContext = useRef<AudioContext | null>(null);
   const analyser = useRef<AnalyserNode | null>(null);
@@ -761,6 +768,7 @@ const VideoCall: React.FC = () => {
     setCaller("");
     setPartnerId("");
     setRemoteStream(null);
+    remotePeerIdRef.current = "";
   };
 
   const initializeCamera = async (facingMode: 'user' | 'environment' = 'user'): Promise<MediaStream | null> => {
@@ -834,13 +842,31 @@ const VideoCall: React.FC = () => {
     }
   };
 
-  const createPeerConnection = async () => {
-    console.log('🔗 Creating peer connection');
+  const flushPendingCandidates = async (pc: RTCPeerConnection) => {
+    const peerId = remotePeerIdRef.current;
+    const queued = pendingCandidates.current;
+    pendingCandidates.current = [];
+    const toAdd = queued.filter(c => c.from === peerId);
+    if (toAdd.length > 0) {
+      console.log(`🧊 Adicionando ${toAdd.length} ICE candidate(s) enfileirados de ${peerId}`);
+    }
+    for (const { candidate } of toAdd) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (error) {
+        console.error('Error adding queued ice candidate:', error);
+      }
+    }
+  };
+
+  const createPeerConnection = async (remotePeerId: string) => {
+    console.log('🔗 Creating peer connection with', remotePeerId);
+    remotePeerIdRef.current = remotePeerId;
 
     let iceServers: RTCIceServer[] = [
       // Servidores STUN gratuitos (funcionam na maioria dos casos)
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
     ];
 
     // Adicionar servidores TURN da variável global
@@ -870,9 +896,14 @@ const VideoCall: React.FC = () => {
         if (event.candidate.candidate.includes('relay')) {
           console.log('✅ TURN funcionando!');
         }
+        const to = remotePeerIdRef.current;
+        if (!to) {
+          console.warn('⚠️ ICE candidate gerado sem parceiro definido - descartado');
+          return;
+        }
         socket.emit("iceCandidate", {
           candidate: event.candidate,
-          to: caller || partnerId
+          to
         });
       }
     };
@@ -1114,12 +1145,13 @@ const VideoCall: React.FC = () => {
           
           if (data.offer) {
             console.log('🔗 Criando peer connection para resposta...');
-            const pc = await createPeerConnection();
+            const pc = await createPeerConnection(data.from);
             peerConnection.current = pc;
             console.log('✅ Peer connection criado para recebimento');
 
             console.log('📋 Setting remote description (offer)');
             await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            await flushPendingCandidates(pc);
             console.log('✅ Remote description set - aguardando usuário clicar em Atender');
           }
         } catch (error) {
@@ -1156,6 +1188,7 @@ const VideoCall: React.FC = () => {
           await peerConnection.current.setRemoteDescription(
             new RTCSessionDescription(data.answer)
           );
+          await flushPendingCandidates(peerConnection.current);
           console.log('✅ Remote description (answer) set successfully');
           
           setCallAccepted(true);
@@ -1169,7 +1202,15 @@ const VideoCall: React.FC = () => {
       socket.on("iceCandidate", async (data: CallData) => {
         try {
           console.log('Received ICE candidate:', data.candidate);
-          if (!peerConnection.current || !data.candidate) {
+          if (!data.candidate) {
+            return;
+          }
+
+          const pc = peerConnection.current;
+          if (!pc || !pc.remoteDescription || remotePeerIdRef.current !== data.from) {
+            // Ainda não dá para adicionar: guarda até o setRemoteDescription
+            console.log('🧊 ICE candidate enfileirado (peer connection/remote description ainda não prontos)');
+            pendingCandidates.current.push({ from: data.from, candidate: data.candidate });
             return;
           }
 
@@ -1177,7 +1218,7 @@ const VideoCall: React.FC = () => {
               console.log('✅ TURN funcionando!');
           }
       
-          await peerConnection.current.addIceCandidate(
+          await pc.addIceCandidate(
             new RTCIceCandidate(data.candidate)
           );
           console.log('ICE candidate added successfully');
@@ -1475,7 +1516,8 @@ const VideoCall: React.FC = () => {
       
       setIsCalling(true);
       console.log('🔗 Criando peer connection...');
-      const pc = await createPeerConnection();
+      pendingCandidates.current = [];
+      const pc = await createPeerConnection(partnerId);
       peerConnection.current = pc;
 
       console.log('🎥 Adding local stream to peer connection (caller)');
