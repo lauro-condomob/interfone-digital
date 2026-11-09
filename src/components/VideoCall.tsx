@@ -61,7 +61,9 @@ const VideoInitialState = styled.video`
   background-color: #000;
   object-fit: cover;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  
+  /* Espelha apenas a visualização local (efeito espelho); o stream enviado ao par não é afetado */
+  transform: scaleX(-1);
+
   @media (max-width: 768px) {
     aspect-ratio: 4/3;
     border-radius: 8px;
@@ -95,6 +97,8 @@ const LocalVideoOverlay = styled.video`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   z-index: 10;
   transition: transform 0.2s ease;
+  /* Espelha apenas a visualização local; o stream enviado ao par não é afetado */
+  transform: scaleX(-1);
   
   @media (max-width: 768px) {
     aspect-ratio: 4/3;
