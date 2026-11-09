@@ -80,22 +80,15 @@ npm run dev     # Terminal 2 - React App (porta 5173)
 
 ## ☁️ Deploy na AWS
 
-### Pré-requisitos AWS
-- Conta AWS
-- Domínio registrado
-- Cliente SSH
+O deploy publica o que está no GitHub (faça push antes):
 
-### Deploy Automático
 ```bash
-# 1. Configurar EC2 (execute no servidor)
-./aws-setup.sh
-
-# 2. Fazer deploy (execute localmente)
-./deploy.sh 3.19.208.48 interfonedigital.duckdns.org
+aws login --profile interfone --region us-east-2   # uma vez a cada 12 h
+./deploy.sh                                        # deploy da main
 ```
 
-### Deploy Manual
-Consulte o [**Guia Completo de Deploy AWS**](AWS_DEPLOY_GUIDE.md) para instruções detalhadas.
+Arquitetura de produção, acesso SSH, operação e setup de uma instância nova:
+[**Guia de Deploy AWS**](AWS_DEPLOY_GUIDE.md).
 
 ## 🔔 Sistema de Toque
 

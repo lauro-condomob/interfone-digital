@@ -1,297 +1,150 @@
-# 🚀 Guia Completo de Deploy na AWS EC2
+# Deploy na AWS EC2
 
-## 📋 Pré-requisitos
+Como o Interfone Digital roda em produção e como fazer deploy.
 
-- Conta AWS
-- Domínio registrado (ex: GoDaddy, Namecheap, Route53)
-- Cliente SSH (Linux/Mac terminal, Windows PowerShell/PuTTY)
+## Visão geral
 
----
-
-## 🏗️ Fase 1: Configuração da AWS
-
-### 1.1 Criar Instância EC2
-
-1. **Faça login no AWS Console**: https://console.aws.amazon.com/
-2. **Vá para EC2**: Serviços → EC2
-3. **Launch Instance**:
-   - **Name**: `interfone-app`
-   - **AMI**: Ubuntu Server 22.04 LTS (Free tier eligible)
-   - **Instance type**: t2.micro (Free tier eligible)
-   - **Key pair**: Create new key pair
-     - Name: `interfone-key`
-     - Type: RSA
-     - Format: .pem
-     - **Download the key** (guarde em ~/.ssh/)
-   - **Network settings**:
-     - Create security group
-     - Allow SSH (port 22) from your IP
-     - Allow HTTP (port 80) from anywhere
-     - Allow HTTPS (port 443) from anywhere
-   - **Storage**: 8 GB (free tier)
-
-4. **Launch instance**
-
-### 1.2 Configurar Security Group
-
-Após criar a instância, configure as regras:
+| Item | Valor |
+|---|---|
+| Conta AWS | `699475938495` |
+| Região | `us-east-2` (Ohio) |
+| Instância | `i-05ea144341d4c18bc` (nome `interfone-digital`), Ubuntu 22.04 |
+| IP público | dinâmico, sem Elastic IP (muda se a instância for parada e iniciada) |
+| Domínio | `interfonedigital.duckdns.org` (DuckDNS) |
+| Security group | `sg-01d896ae5e2ce34c5` |
+| Código | clone git em `/home/ubuntu/interfone-digital` |
+| Node.js | 18 |
 
 ```
-Type        Protocol    Port Range    Source
-SSH         TCP         22           Your IP/32
-HTTP        TCP         80           0.0.0.0/0
-HTTPS       TCP         443          0.0.0.0/0
-Custom TCP  TCP         8000         0.0.0.0/0  (temporário para teste)
+navegador ──HTTPS──▶ nginx :443 ─┬─ /            → arquivos estáticos de dist/
+                                 ├─ /socket.io/  → https://localhost:8000 (sinalização WebRTC)
+                                 └─ /api/turn/   → https://localhost:8000/api/turn (credenciais TURN da Twilio)
+
+supervisor (programa "meuapp") → node server/server.js, porta 8000
 ```
 
-### 1.3 Obter IP Público
+- **Frontend:** build do Vite em `dist/`, gerado no próprio servidor com `sudo npm run build`.
+- **Backend:** `server/server.js`, gerenciado pelo supervisor
+  (`/etc/supervisor/conf.d/app-node.conf`). Escuta em HTTPS na porta 8000 usando um
+  certificado autoassinado (`cert.pem` e `key.pem` na raiz do clone); só o nginx
+  fala com ele.
+- **Variáveis de ambiente:** `server/.env`, carregado via `dotenv` e ignorado pelo git.
+  Contém as credenciais da Twilio; veja [TWILIO_SETUP.md](TWILIO_SETUP.md).
+- **nginx:** `/etc/nginx/sites-available/interfone.conf`.
+- **Certificado público:** Let's Encrypt em `/etc/letsencrypt/live/interfonedigital.duckdns.org/`,
+  renovado automaticamente pelo timer do certbot.
 
-- Anote o **Public IPv4 address** da sua instância
-- Exemplo: `3.19.208.48`
+## Acesso
 
----
+A chave `.pem` do key pair `interfone-digital` não é necessária: o acesso é feito por
+**EC2 Instance Connect**, que autoriza sua chave SSH pública por 60 segundos.
 
-## 🌐 Fase 2: Configuração do Domínio
+### 1. Login na AWS
 
-### 2.1 Configurar DNS
-
-No seu provedor de domínio, configure:
-
-```
-Type    Name    Value           TTL
-A       @       3.19.208.48    300
-A       www     3.19.208.48    300
-```
-
-### 2.2 Verificar Propagação
+Requer AWS CLI 2.32.0 ou mais recente.
 
 ```bash
-# Teste se o DNS propagou
-nslookup interfonedigital.duckdns.org
-ping interfonedigital.duckdns.org
+aws login --profile interfone --region us-east-2
+aws sts get-caller-identity --profile interfone   # confere a conta 699475938495
 ```
 
----
+As credenciais duram até 12 horas.
 
-## 💻 Fase 3: Configuração do Servidor
-
-### 3.1 Conectar ao EC2
+### 2. SSH na instância
 
 ```bash
-# Configurar permissões da chave
-chmod 400 ~/.ssh/interfone-key.pem
+P="--profile interfone --region us-east-2"
+IP=$(aws ec2 describe-instances $P --instance-ids i-05ea144341d4c18bc \
+  --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
 
-# Conectar ao servidor
-ssh -i ~/.ssh/interfone-key.pem ubuntu@3.19.208.48
+aws ec2-instance-connect send-ssh-public-key $P \
+  --instance-id i-05ea144341d4c18bc --instance-os-user ubuntu \
+  --ssh-public-key file://$HOME/.ssh/id_rsa.pub
+
+ssh -i ~/.ssh/id_rsa ubuntu@$IP    # dentro de 60 segundos
 ```
 
-### 3.2 Executar Configuração Inicial
+## Deploy
 
-No servidor EC2, execute:
+O deploy publica o que está no GitHub, não o que está na sua máquina. Faça push antes.
 
 ```bash
-# Download do script de configuração
-wget -O aws-setup.sh https://raw.githubusercontent.com/seu-repo/interfone/main/aws-setup.sh
-
-# Dar permissão de execução
-chmod +x aws-setup.sh
-
-# Executar configuração
-./aws-setup.sh
+./deploy.sh            # deploy da main
+./deploy.sh meu-branch # deploy de outro branch
 ```
 
-### 3.3 Configurar Domínio no Nginx
+O [deploy.sh](deploy.sh):
+
+1. Confere as credenciais AWS e se o branch existe no `origin`.
+2. Descobre o IP atual da instância e libera o SSH via Instance Connect.
+3. No servidor, faz `git fetch`, `git checkout <branch>` e `git pull --ff-only`. Para
+   o deploy se houver alterações não commitadas no clone.
+4. Roda `npm install` apenas se `package.json` ou `package-lock.json` mudaram (raiz ou `server/`).
+5. Roda `sudo npm run build` e `sudo supervisorctl restart meuapp`.
+6. Testa `https://interfonedigital.duckdns.org/api/turn/` e falha se não responder 200.
+
+O `server/.env` não é versionado, então o `git pull` não o altera.
+
+Para usar outro profile, instância ou chave: `AWS_PROFILE`, `AWS_REGION`, `INSTANCE_ID`,
+`SSH_KEY` e `DOMAIN` (veja o cabeçalho do script).
+
+### Deploy manual
+
+Equivalente ao script, já dentro da instância:
 
 ```bash
-# Substituir placeholder pelo seu domínio
-sudo sed -i 's/DOMAIN_PLACEHOLDER/interfonedigital.duckdns.org/g' /etc/nginx/sites-available/interfone
-
-# Ativar site
-sudo ln -sf /etc/nginx/sites-available/interfone /etc/nginx/sites-enabled/
-
-# Testar configuração
-sudo nginx -t
-
-# Recarregar nginx
-sudo systemctl reload nginx
+cd ~/interfone-digital
+git pull
+sudo npm run build                # só se o frontend mudou
+sudo supervisorctl restart meuapp # só se o backend mudou
 ```
 
-### 3.4 Configurar SSL com Let's Encrypt
+## Operação
 
 ```bash
-# Obter certificado SSL
-sudo certbot --nginx -d interfonedigital.duckdns.org
-
-# Seguir as instruções do certbot
-# Escolha opção 2 (redirect HTTP to HTTPS)
+sudo supervisorctl status meuapp
+sudo supervisorctl restart meuapp
+sudo tail -f /var/log/interfone-digital.out.log   # stdout do backend
+sudo tail -f /var/log/interfone-digital.err.log   # stderr do backend
+sudo tail -f /var/log/nginx/error.log
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot certificates                         # validade do certificado
 ```
 
----
-
-## 🚀 Fase 4: Deploy da Aplicação
-
-### 4.1 Preparar Arquivos Localmente
-
-No seu computador local:
+Testes rápidos:
 
 ```bash
-# Tornar script executável
-chmod +x deploy.sh
-
-# Fazer build da aplicação
-npm run build
-
-# Executar deploy
-./deploy.sh 3.19.208.48 interfonedigital.duckdns.org
+curl -sI https://interfonedigital.duckdns.org/            # 200
+curl -s  https://interfonedigital.duckdns.org/api/turn/   # JSON com stun/turn da Twilio
 ```
 
-### 4.2 Verificar Deploy
+`/api/turn` sem a barra final responde 301 para `/api/turn/`. O frontend já segue o redirect.
 
-```bash
-# Conectar ao servidor
-ssh -i ~/.ssh/interfone-key.pem ubuntu@3.19.208.48
+## Problemas comuns
 
-# Verificar status do serviço
-sudo systemctl status interfone
+| Sintoma | Causa provável | O que fazer |
+|---|---|---|
+| `/api/turn/` responde 500 | `server/.env` ausente ou credenciais da Twilio inválidas | Veja [TWILIO_SETUP.md](TWILIO_SETUP.md) e o `interfone-digital.err.log` |
+| Chamadas não conectam entre redes diferentes | Sem servidores TURN (`/api/turn` falhando) | Corrija o `/api/turn` e confira o console do navegador |
+| 502 no `/socket.io/` | Backend parado | `sudo supervisorctl status meuapp` e logs |
+| SSH recusado ou timeout | Mais de 60 s entre o `send-ssh-public-key` e o `ssh`, ou IP mudou | Repita os dois comandos e consulte o IP de novo |
+| Site fora do ar depois de reiniciar a instância | IP público mudou e o DuckDNS ainda aponta para o antigo | Atualize o IP no DuckDNS |
 
-# Ver logs em tempo real
-sudo journalctl -f -u interfone
-```
+## Instância nova do zero
 
----
+O [aws-setup.sh](aws-setup.sh) reproduz o setup de produção numa EC2 Ubuntu 22.04 nova:
+pacotes, clone, certificado do backend, build, supervisor, nginx e certbot.
 
-## 🔧 Fase 5: Configuração da Twilio (Opcional)
+Ele foi escrito a partir da configuração atual de produção e ainda não foi testado numa
+instância nova.
 
-### 5.1 Configurar Credenciais
-
-```bash
-# No servidor EC2, edite o arquivo .env
-sudo nano /opt/interfone/server/.env
-
-# Adicione suas credenciais da Twilio
-TWILIO_ACCOUNT_SID=seu_account_sid
-TWILIO_AUTH_TOKEN=seu_auth_token
-
-# Reiniciar serviço
-sudo systemctl restart interfone
-```
-
----
-
-## ✅ Fase 6: Teste e Verificação
-
-### 6.1 Testes Básicos
-
-1. **Acesse**: `https://interfonedigital.duckdns.org`
-2. **Verifique**:
-   - ✅ Site carrega com HTTPS
-   - ✅ Não há erros de certificado
-   - ✅ Conecta ao WebSocket
-   - ✅ Funcionalidades de videochamada
-
-### 6.2 Testes de Conectividade
-
-```bash
-# Teste HTTPS
-curl -I https://interfonedigital.duckdns.org
-
-# Teste API
-curl https://interfonedigital.duckdns.org/api/turn-config
-
-# Teste WebSocket (do navegador)
-# DevTools > Console:
-# io('https://interfonedigital.duckdns.org')
-```
-
----
-
-## 🛠️ Manutenção e Monitoramento
-
-### Comandos Úteis
-
-```bash
-# Ver logs da aplicação
-sudo journalctl -f -u interfone
-
-# Reiniciar aplicação
-sudo systemctl restart interfone
-
-# Verificar status dos serviços
-sudo systemctl status interfone nginx
-
-# Atualizar aplicação
-./deploy.sh 3.19.208.48 interfonedigital.duckdns.org
-
-# Backup
-sudo tar -czf /backup/interfone-$(date +%Y%m%d).tar.gz /opt/interfone
-```
-
-### Monitoramento
-
-- **Logs de acesso**: `/var/log/nginx/access.log`
-- **Logs de erro**: `/var/log/nginx/error.log`
-- **Logs da aplicação**: `sudo journalctl -u interfone`
-
----
-
-## 💰 Custos Estimados
-
-### AWS EC2 (t2.micro)
-- **Free Tier**: 750 horas/mês grátis (primeiro ano)
-- **Após free tier**: ~$8.50/mês
-
-### Certificado SSL
-- **Let's Encrypt**: Gratuito
-
-### Domínio
-- **Variável**: $10-15/ano
-
-### Twilio TURN
-- **Conta gratuita**: Créditos iniciais
-- **Produção**: ~$0.0001-0.0004 por minuto
-
----
-
-## 🆘 Solução de Problemas
-
-### Problema: Site não carrega
-```bash
-# Verificar nginx
-sudo systemctl status nginx
-sudo nginx -t
-
-# Verificar DNS
-nslookup interfonedigital.duckdns.org
-```
-
-### Problema: WebSocket não conecta
-```bash
-# Verificar aplicação
-sudo systemctl status interfone
-sudo journalctl -u interfone --since "10 minutes ago"
-
-# Verificar portas
-sudo netstat -tlnp | grep :8000
-```
-
-### Problema: SSL não funciona
-```bash
-# Verificar certificado
-sudo certbot certificates
-
-# Renovar certificado
-sudo certbot renew --dry-run
-```
-
----
-
-## 📞 Suporte
-
-Se encontrar problemas:
-
-1. **Verifique os logs** primeiro
-2. **Consulte a documentação** da AWS
-3. **Teste localmente** antes de fazer deploy
-4. **Mantenha backups** regulares
-
-**🎉 Sua aplicação de videochamada estará disponível em `https://interfonedigital.duckdns.org`!** 
+1. Crie a instância (Ubuntu 22.04) com um security group liberando TCP 22, 80 e 443.
+2. Aponte o domínio no DuckDNS para o IP público dela.
+3. Entre via SSH e rode:
+   ```bash
+   curl -fsSLO https://raw.githubusercontent.com/lauro-condomob/interfone-digital/main/aws-setup.sh
+   chmod +x aws-setup.sh
+   ./aws-setup.sh interfonedigital.duckdns.org https://github.com/lauro-condomob/interfone-digital.git
+   ```
+4. Crie o `server/.env` ([TWILIO_SETUP.md](TWILIO_SETUP.md)) e reinicie o `meuapp`.
+5. Atualize `INSTANCE_ID` no [deploy.sh](deploy.sh) e a tabela no topo deste guia.

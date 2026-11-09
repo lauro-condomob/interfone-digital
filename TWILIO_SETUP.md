@@ -1,79 +1,65 @@
 # Configuração TURN da Twilio
 
-## 1. Criar Conta na Twilio
+O backend expõe `GET /api/turn`, que usa a API Network Traversal da Twilio
+(`client.tokens.create()`) para gerar servidores STUN/TURN com credenciais
+temporárias. O frontend ([VideoCall.tsx](src/components/VideoCall.tsx)) busca
+essa lista ao carregar a página e a usa no `RTCPeerConnection`.
 
-1. Acesse [https://www.twilio.com/](https://www.twilio.com/)
-2. Crie uma conta gratuita
-3. Vá para o Console da Twilio
+Sem as credenciais, o `/api/turn` responde **500**. Nesse caso o frontend usa só
+STUN do Google, e chamadas entre redes com NAT restritivo (4G, redes corporativas)
+podem não conectar.
 
-## 2. Obter Credenciais
+## 1. Obter as credenciais
 
-No Console da Twilio, você precisará:
+No [Console da Twilio](https://console.twilio.com/), copie:
 
-1. **Account SID**: Encontre na página principal do console
-2. **Auth Token**: Clique em "Show" ao lado do Auth Token
+- **Account SID**
+- **Auth Token** (clique em "Show")
 
-## 3. Configurar no Servidor
+## 2. Configurar na EC2
 
-Edite o arquivo `/opt/interfone/server/.env` no seu EC2:
-
-```bash
-# Configurações TURN da Twilio
-TWILIO_ACCOUNT_SID=seu_account_sid_aqui
-TWILIO_AUTH_TOKEN=seu_auth_token_aqui
-```
-
-## 4. Integração com a API (TODO)
-
-Para integrar completamente com a Twilio, você precisará instalar o SDK:
+As credenciais ficam em `server/.env` dentro do clone de produção. O arquivo é
+carregado pelo `server.js` via `dotenv` e está no `.gitignore`.
 
 ```bash
-npm install twilio
+# Na sua máquina: crie o arquivo localmente (fora do repositório)
+cat > /tmp/twilio.env << 'EOF'
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+EOF
+
+# Libere seu acesso SSH por 60 s via EC2 Instance Connect e copie o arquivo
+aws ec2-instance-connect send-ssh-public-key --profile interfone --region us-east-2 \
+  --instance-id i-05ea144341d4c18bc --instance-os-user ubuntu \
+  --ssh-public-key file://$HOME/.ssh/id_rsa.pub
+scp -i ~/.ssh/id_rsa /tmp/twilio.env ubuntu@<IP>:/home/ubuntu/interfone-digital/server/.env
+rm /tmp/twilio.env
+
+# Na EC2
+chmod 600 ~/interfone-digital/server/.env
+sudo supervisorctl restart meuapp
 ```
 
-E atualizar o endpoint `/api/turn-config` no `server.js`:
+O `deploy.sh` faz `git pull` no clone, então o `.env` (ignorado pelo git)
+continua lá entre deploys.
 
-```javascript
-import twilio from 'twilio';
+## 3. Testar
 
-// No endpoint /api/turn-config
-app.get('/api/turn-config', async (req, res) => {
-  try {
-    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
-      return res.json({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-    }
-
-    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-    
-    const token = await client.tokens.create({
-      ttl: 3600 // 1 hora
-    });
-
-    const turnConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        {
-          urls: token.ice_servers[0].urls,
-          username: token.ice_servers[0].username,
-          credential: token.ice_servers[0].credential
-        }
-      ]
-    };
-
-    res.json(turnConfig);
-  } catch (error) {
-    console.error('Erro ao obter configuração TURN:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-  }
-});
+```bash
+curl -s https://interfonedigital.duckdns.org/api/turn/
 ```
 
-## 5. Custos
+Deve responder 200 com um servidor `stun:global.stun.twilio.com:3478` e servidores
+`turn:global.turn.twilio.com` (UDP 3478, TCP 3478 e TCP 443), cada um com `username`
+e `credential`.
 
-- **Conta gratuita**: Inclui alguns créditos iniciais
-- **TURN servers**: Cobrados por uso (geralmente muito baixo para aplicações pequenas)
-- **Preços atuais**: Consulte a página de preços da Twilio
+No navegador, o console registra `✅ TURN funcionando!` quando um candidato
+`relay` é gerado, ou seja, quando as credenciais TURN foram aceitas. Para
+confirmar que a chamada de fato passa pelo relay, faça uma chamada entre redes
+diferentes (por exemplo, Wi-Fi e 4G) e veja em `chrome://webrtc-internals` o par
+de candidatos selecionado.
 
-## 6. Teste
+## Custos
 
-Após configurar, teste em diferentes redes (Wi-Fi, 4G) para verificar se o TURN está funcionando corretamente em cenários com NAT/Firewall restritivos. 
+A Twilio cobra o tráfego que passa pelos servidores TURN, por GB. Consulte a
+[página de preços](https://www.twilio.com/stun-turn/pricing).
