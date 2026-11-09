@@ -28,7 +28,7 @@ fi
 echo "📦 Instalando pacotes..."
 sudo apt update
 sudo apt install -y nginx certbot python3-certbot-nginx supervisor git openssl
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install -y nodejs
 
 echo "📥 Clonando o repositório..."

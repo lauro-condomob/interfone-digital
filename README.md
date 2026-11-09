@@ -23,7 +23,7 @@ Uma aplicação moderna de videochamada desenvolvida com React e WebRTC, oferece
 - **Vite** para build e desenvolvimento
 
 ### Backend
-- **Node.js 18+** 
+- **Node.js 24 LTS**
 - **Express** como servidor web
 - **Socket.IO** para WebSocket
 - **CORS** configurado para produção
@@ -36,7 +36,7 @@ Uma aplicação moderna de videochamada desenvolvida com React e WebRTC, oferece
 
 ## 📋 Pré-requisitos
 
-- Node.js 16+ (recomendado 18+)
+- Node.js 24 LTS (`nvm use` lê o [.nvmrc](.nvmrc))
 - NPM ou Yarn
 - Navegador moderno com suporte WebRTC
 - Câmera e microfone (para videochamadas)

@@ -13,7 +13,7 @@ Como o Interfone Digital roda em produção e como fazer deploy.
 | Domínio | `interfonedigital.duckdns.org` (DuckDNS) |
 | Security group | `sg-01d896ae5e2ce34c5` |
 | Código | clone git em `/home/ubuntu/interfone-digital` |
-| Node.js | 18 |
+| Node.js | 24 LTS (versão em [.nvmrc](.nvmrc)) |
 
 ```
 navegador ──HTTPS──▶ nginx :443 ─┬─ /            → arquivos estáticos de dist/
@@ -119,6 +119,25 @@ curl -s  https://interfonedigital.duckdns.org/api/turn/   # JSON com stun/turn d
 ```
 
 `/api/turn` sem a barra final responde 301 para `/api/turn/`. O frontend já segue o redirect.
+
+### Atualizar o Node.js
+
+O Node vem do repositório da NodeSource. Para trocar de versão major (ex.: para a 24):
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt install -y nodejs
+node -v
+
+cd ~/interfone-digital
+rm -rf node_modules server/node_modules   # módulos nativos podem depender da versão do Node
+npm install --no-audit --no-fund
+(cd server && npm install --omit=dev --no-audit --no-fund)
+sudo npm run build
+sudo supervisorctl restart meuapp
+```
+
+Atualize também o [.nvmrc](.nvmrc) e o `setup_XX.x` do [aws-setup.sh](aws-setup.sh).
 
 ## Problemas comuns
 
