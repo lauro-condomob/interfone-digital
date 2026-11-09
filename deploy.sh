@@ -39,7 +39,12 @@ echo "🔧 Executando deploy no servidor..."
 ssh -i ~/.ssh/interfone-key.pem ubuntu@$EC2_IP << EOF
     # Parar serviços existentes
     sudo systemctl stop interfone || true
-    
+
+    # Preservar o .env atual (credenciais da Twilio etc.)
+    if [ -f /opt/interfone/server/.env ]; then
+        sudo cp /opt/interfone/server/.env /tmp/interfone.env
+    fi
+
     # Backup da versão anterior
     sudo mv /opt/interfone /opt/interfone-backup-\$(date +%Y%m%d-%H%M%S) || true
     
@@ -52,7 +57,12 @@ ssh -i ~/.ssh/interfone-key.pem ubuntu@$EC2_IP << EOF
     cd /opt/interfone/server
     npm install --production
     
-    # Configurar variáveis de ambiente
+    # Configurar variáveis de ambiente (restaura o .env anterior se existir)
+    if [ -f /tmp/interfone.env ]; then
+        sudo mv /tmp/interfone.env /opt/interfone/server/.env
+        sudo chown ubuntu:ubuntu /opt/interfone/server/.env
+        sudo chmod 600 /opt/interfone/server/.env
+    else
     sudo tee /opt/interfone/server/.env > /dev/null << EOL
 PORT=8000
 NODE_ENV=production
@@ -63,6 +73,7 @@ SSL_CERT_PATH=/etc/ssl/certs/fullchain.pem
 # TWILIO_ACCOUNT_SID=your_account_sid
 # TWILIO_AUTH_TOKEN=your_auth_token
 EOL
+    fi
     
     # Iniciar serviço
     sudo systemctl start interfone
