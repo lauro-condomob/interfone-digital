@@ -4,7 +4,7 @@ import io from 'socket.io-client';
 import IdSetup from './IdSetup';
 import NotificationSystem from './NotificationSystem';
 import PartnersPopup from './PartnersPopup';
-import type { CallData, LogEntry, Notification } from '../types';
+import type { CallData, CallEndReason, LogEntry, Notification } from '../types';
 
 // ============================================================================
 // STYLED COMPONENTS
@@ -713,7 +713,7 @@ const VideoCall: React.FC = () => {
   const [isSettingId, setIsSettingId] = useState(false);
   const [partnerEndedCall, setPartnerEndedCall] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [callEndReason, setCallEndReason] = useState<'ended' | 'rejected' | 'busy' | 'disconnected' | null>(null);
+  const [callEndReason, setCallEndReason] = useState<CallEndReason | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>(() => [...globalLogs]);
   const [showLogsPopup, setShowLogsPopup] = useState(false);
   const [allUsers, setAllUsers] = useState<string[]>([]);

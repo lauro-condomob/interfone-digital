@@ -111,8 +111,11 @@ Para produção em redes restritivas, configure servidores TURN:
 interfone/
 ├── src/
 │   ├── components/
-│   │   ├── VideoCall.tsx      # Componente principal
-│   │   └── AudioIndicator.tsx # Indicador de áudio
+│   │   ├── VideoCall.tsx          # Componente principal
+│   │   ├── IdSetup.tsx            # Escolha do ID do usuário
+│   │   ├── NotificationSystem.tsx # Notificações
+│   │   └── PartnersPopup.tsx      # Lista de parceiros
+│   ├── types/index.ts         # Tipos compartilhados
 │   ├── App.tsx                # App principal
 │   └── main.tsx              # Entry point
 ├── server/

@@ -20,8 +20,3 @@ export interface Notification {
 }
 
 export type CallEndReason = 'ended' | 'rejected' | 'busy' | 'disconnected';
-
-export interface VideoCallProps {
-  userId: string;
-  onLogout?: () => void;
-} 
