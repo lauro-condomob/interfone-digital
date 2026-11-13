@@ -96,6 +96,13 @@ function getCallPartner(userId) {
   return callInfo ? callInfo.partnerId : null;
 }
 
+// Remove o estado de ambos apenas se eles estiverem de fato em chamada um com o outro,
+// para que um evento vindo de outra chamada não apague o registro da chamada em andamento
+function removeCallPair(userA, userB) {
+  if (getCallPartner(userA) === userB) removeCallState(userA);
+  if (getCallPartner(userB) === userA) removeCallState(userB);
+}
+
 function notifyPartnerOfDisconnection(disconnectedUserId) {
   const callInfo = activeCalls.get(disconnectedUserId);
   if (callInfo) {
@@ -163,8 +170,15 @@ io.on("connection", (socket) => {
       return;
     }
 
+    // Destinatário já está em outra chamada: recusar como "ocupado" sem tocar no estado dele
+    if (activeCalls.has(data.userToCall)) {
+      console.log(`📵 ${data.userToCall} is busy, rejecting call from ${callerCustomId}`);
+      socket.emit("callRejected", { from: data.userToCall, reason: 'busy' });
+      return;
+    }
+
     console.log(`Call request from ${callerCustomId} (${socket.id}) to ${data.userToCall} (${targetSocketId})`);
-    
+
     // Registrar estado de chamada como "calling"
     setCallState(callerCustomId, data.userToCall, 'calling');
     setCallState(data.userToCall, callerCustomId, 'calling');
@@ -226,8 +240,7 @@ io.on("connection", (socket) => {
     console.log(`Call ended by ${senderCustomId} (${socket.id}), notifying ${data.to} (${targetSocketId})`);
     
     // Remover estados de chamada
-    removeCallState(senderCustomId);
-    removeCallState(data.to);
+    removeCallPair(senderCustomId, data.to);
     
     io.to(targetSocketId).emit("callEnded", {
       from: senderCustomId,
@@ -244,8 +257,7 @@ io.on("connection", (socket) => {
     console.log(`Call ${reason} by ${rejectorCustomId} (${socket.id}), notifying ${data.to} (${callerSocketId})`);
     
     // Remover estados de chamada
-    removeCallState(rejectorCustomId);
-    removeCallState(data.to);
+    removeCallPair(rejectorCustomId, data.to);
     
     io.to(callerSocketId).emit("callRejected", {
       from: rejectorCustomId,
