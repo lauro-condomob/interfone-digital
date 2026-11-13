@@ -13,12 +13,10 @@ import twilio from 'twilio';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const app = express();
-app.use(cors());
+const apiServer = express();
+apiServer.use(cors());
 
-
-
-app.get('/api/turn', async (req, res) => {
+apiServer.get('/api/turn', async (req, res) => {
   // Substitua pelos seus dados da Twilio
   const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID || undefined;
   const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN || undefined;
@@ -35,7 +33,7 @@ app.get('/api/turn', async (req, res) => {
 
 
 // Usar HTTPS para evitar Mixed Content com o cliente HTTPS
-let server;
+let websocketServer;
 const certPath = path.join(__dirname, '..', 'cert.pem');
 const keyPath = path.join(__dirname, '..', 'key.pem');
 
@@ -46,17 +44,17 @@ try {
       key: fs.readFileSync(keyPath),
       cert: fs.readFileSync(certPath)
     };
-    server = createHttpsServer(httpsOptions, app);
+    websocketServer = createHttpsServer(httpsOptions, apiServer);
   } else {
     console.log('⚠️ Certificados não encontrados, usando HTTP (pode causar Mixed Content)');
-    server = createServer(app);
+    websocketServer = createServer(apiServer);
   }
 } catch (error) {
   console.log('⚠️ Erro ao configurar HTTPS, usando HTTP:', error.message);
-  server = createServer(app);
+  websocketServer = createServer(apiServer);
 }
 
-const io = new Server(server, {
+const io = new Server(websocketServer, {
   cors: {
     origin: true, // Permite qualquer origem durante desenvolvimento  
     methods: ["GET", "POST"],
@@ -119,8 +117,6 @@ function notifyPartnerOfDisconnection(disconnectedUserId) {
     removeCallState(disconnectedUserId);
   }
 }
-
-
 
 io.on("connection", (socket) => {
   console.log(`Socket Connected: ${socket.id}`);
@@ -282,8 +278,8 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 8000;
-server.listen(PORT, () => {
-  const protocol = server.constructor.name === 'Server' ? 'https' : 'http';
+websocketServer.listen(PORT, () => {
+  const protocol = websocketServer.constructor.name === 'Server' ? 'https' : 'http';
   console.log(`🚀 Server is running on ${protocol}://localhost:${PORT}`);
   if (protocol === 'https') {
     console.log(`🔒 HTTPS enabled - evitando Mixed Content`);
