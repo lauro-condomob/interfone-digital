@@ -1266,11 +1266,6 @@ const VideoCall: React.FC = () => {
             hasRemoteStream: !!remoteStream
           });
           
-          // Mostrar mensagem específica se o usuário estiver ocupado
-          if (reason === 'busy') {
-            alert(`📞 ${data.from} está ocupado em outra chamada. Tente novamente mais tarde.`);
-          }
-          
           // Fechar peer connection primeiro
           if (peerConnection.current) {
             peerConnection.current.close();
@@ -1307,7 +1302,7 @@ const VideoCall: React.FC = () => {
 
       socket.on("callError", (data: { message: string }) => {
         console.log("❌ Call error:", data.message);
-        alert(`Erro na chamada: ${data.message}`);
+        showNotification(`Erro na chamada: ${data.message}`, 'error');
         setIsCalling(false);
       });
 
@@ -1509,7 +1504,7 @@ const VideoCall: React.FC = () => {
 
     if (!stream) {
       console.log('❌ Stream não disponível ainda');
-      alert("Aguarde o carregamento da câmera");
+      showNotification("Aguarde o carregamento da câmera", 'warning');
       return;
     }
 
